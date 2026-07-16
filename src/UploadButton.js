@@ -76,11 +76,11 @@ class UploadButton extends Component {
                     <input type="file" onChange={this.validateFile} /> 
                     <button
                         type="button"
-                        className="btn btn-primary" 
-                        disabled={this.state.uploadState}
-                        onClick={() => this.props.sendImgToServer(imgBase64)}> 
-                      Upload! 
-                    </button> 
+                        className="btn btn-primary"
+                        disabled={this.state.uploadState || this.props.disabled}
+                        onClick={() => this.props.sendImgToServer(imgBase64)}>
+                      Upload!
+                    </button>
                 </div>
                 <Modal 
                     show={this.state.showModal}

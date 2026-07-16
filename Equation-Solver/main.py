@@ -1,100 +1,63 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import csv
+import os
+
 import cv2
 import numpy as np
+from PIL import Image, ImageOps
 # model.h5 is a legacy Keras 2 save; tf_keras is the Keras 2 compat package
 from tf_keras.models import load_model
-import pandas as pd
-from PIL import Image,ImageOps
-import segmentor as segmentor
-import os
-import shutil
-# 'segmented' directory contains each mathematical symbol in the image
-root = os.getcwd()
-if 'segmented' in os.listdir():
-    shutil.rmtree('segmented')
-os.mkdir('segmented')
-SEGMENTED_OUTPUT_DIR = os.path.join(root, 'segmented')
-# trained model
-MODEL_PATH = os.path.join(root, 'model.h5')
-# csv file that maps numerical code to the character
-mapping_processed = os.path.join(root, 'mapper.csv')
-# load the trained model once at import time, not per request
+
+from segmentor import segment_characters
+
+ROOT = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(ROOT, 'model.h5')
+MAPPER_PATH = os.path.join(ROOT, 'mapper.csv')
+
+# load the trained model and the id -> character mapping once at import time
 model = load_model(MODEL_PATH)
+with open(MAPPER_PATH, newline='') as f:
+    CODE2CHAR = {int(row['id']): row['char'] for row in csv.DictReader(f)}
 
-def img2emnist(filepath, char_code):
-    img = Image.open(filepath).resize((28, 28))
-    inv_img = ImageOps.invert(img)
-    flatten = np.array(inv_img).flatten() / 255
-    flatten = np.where(flatten > 0.5, 1, 0)
-    csv_img = ','.join([str(num) for num in flatten])
-    csv_str = '{},{}'.format(char_code, csv_img)
-    return csv_str
+ERODE_KERNEL = np.ones((2, 2), np.uint8)
 
-def processor(INPUT_IMAGE):
-    img = Image.open(INPUT_IMAGE)
-    # segmennting each character in the image
-    segmentor.image_segmentation(INPUT_IMAGE)
-    segmented_images = []
-    files = sorted(os.listdir(SEGMENTED_OUTPUT_DIR))
-    if not files:
-        # nothing recognizable in the image
-        return ""
-    # writing images to the 'segmented' directory
-    for file in files:
-        file_path = os.path.join(SEGMENTED_OUTPUT_DIR , file)
-        segmented_images.append(Image.open(file_path))
 
-    files = sorted(list(os.walk(SEGMENTED_OUTPUT_DIR))[0][2])
-    for file in files:
-        filename = os.path.join(SEGMENTED_OUTPUT_DIR, file)
-        img = cv2.imread(filename, 0)
+def _to_model_input(crop):
+    """Convert one character crop to the 28x28 binary format the CNN expects."""
+    eroded = cv2.erode(crop, ERODE_KERNEL, iterations=1)
+    img = Image.fromarray(eroded).resize((28, 28))
+    inverted = ImageOps.invert(img)
+    normalized = np.array(inverted, dtype=float) / 255
+    return np.where(normalized > 0.5, 1.0, 0.0)
 
-        kernel = np.ones((2,2), np.uint8)
-        dilation = cv2.erode(img, kernel, iterations = 1)
-        cv2.imwrite(filename, dilation)
-        
-    segmented_characters = 'segmented_characters.csv'
-    if segmented_characters in os.listdir():
-        os.remove(segmented_characters)
-    # resize image to 48x48 and write the flattened out list to the csv file
-    with open(segmented_characters, 'a+') as f_test:
-        column_names = ','.join(["label"] + ["pixel" + str(i) for i in range(784)])
-        print(column_names, file=f_test)
 
-        files = sorted(list(os.walk(SEGMENTED_OUTPUT_DIR))[0][2])
-        for f in files:
-            file_path = os.path.join(SEGMENTED_OUTPUT_DIR, f)
-            csv = img2emnist(file_path, -1)
-            print(csv, file=f_test)
-
-    test_df = data = pd.read_csv('segmented_characters.csv')
-    X_data = data.drop('label', axis = 1)
-    X_data = X_data.values.reshape(-1,28,28,1)
-    X_data = X_data.astype(float)
-
-    df = pd.read_csv(mapping_processed)
-    code2char = {}
-    for index, row in df.iterrows():
-        code2char[row['id']] = row['char']
-    # predict each segmented character
-    results = model.predict(X_data)
-    results = np.argmax(results, axis = 1)
-    parsed_str = ""
-    for r in results:
-        parsed_str += code2char[r]
-    return parsed_str
-
-def main(operationBytes):
-    img = Image.open(operationBytes)
+def _flatten_transparency(img):
+    """Composite transparent images onto white; a transparent canvas export
+    turns solid black in grayscale otherwise."""
     if img.mode in ('RGBA', 'LA', 'PA') or (img.mode == 'P' and 'transparency' in img.info):
-        # canvas exports have a transparent background that turns solid
-        # black in grayscale — composite onto white first
         img = img.convert('RGBA')
         background = Image.new('RGBA', img.size, (255, 255, 255, 255))
         img = Image.alpha_composite(background, img)
-    img.convert('RGB').save('input.png')
-    equation = processor('input.png')
-    print('\nequation :', equation)
+    return img
+
+
+def recognize(image_source):
+    """Recognize the equation in an image (path or file-like object).
+
+    Returns the predicted character string, or "" if nothing was detected.
+    Everything runs in memory; nothing is written to disk.
+    """
+    img = _flatten_transparency(Image.open(image_source))
+    gray = np.array(img.convert('L'))
+
+    crops = segment_characters(gray)
+    if not crops:
+        return ""
+
+    batch = np.stack([_to_model_input(c) for c in crops]).reshape(-1, 28, 28, 1)
+    results = np.argmax(model.predict(batch, verbose=0), axis=1)
+    equation = "".join(CODE2CHAR[r] for r in results)
+    print('equation :', equation)
     return equation

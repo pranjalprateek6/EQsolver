@@ -1,60 +1,58 @@
-import os
-import json
 import base64
-import shutil
-from main import main
+import binascii
 from io import BytesIO
-from calculator import calculate
-from flask import Flask
-from flask_restful import Api, Resource, reqparse
+
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-#port = int(os.environ.get('PORT', 5000))
-root = os.getcwd()
+from calculator import calculate
+from main import recognize
 
 app = Flask(__name__)
-api = Api(app)
 CORS(app)
 
-image_req_args = reqparse.RequestParser()
-image_req_args.add_argument("image", type=str)
-
-class Predict(Resource):
-    
-    def post(self):
-        args = image_req_args.parse_args()
-        if 'internals' in os.listdir():
-            shutil.rmtree('internals')
-        if 'segmented' in os.listdir():
-            shutil.rmtree('segmented')
-        os.mkdir('segmented')
-        operation = BytesIO(base64.urlsafe_b64decode(args['image']))
-        operation = main(operation)
-        print("operation :", operation)
-        os.mkdir('internals')
-        shutil.move('segmented', 'internals')
-        shutil.move('input.png', 'internals')
-        if 'segmented_characters.csv' not in os.listdir():
-            return json.dumps({
-            'Entered_equation': '',
-            'Formatted_equation': '',
-            'solution': ''
-        })
-
-        shutil.move('segmented_characters.csv', 'internals')
-        formatted_equation, solution = calculate(operation)
-        print("solution :", solution)
-        return json.dumps({
-            'Entered_equation': operation,
-            'Formatted_equation': formatted_equation,
-            'solution': str(solution)
-        })
 
 @app.route('/')
 def index():
-    # A welcome message to test our server
     return "<h1>Equations Solver</h1>"
 
-api.add_resource(Predict, "/predict")
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    body = request.get_json(silent=True) or {}
+    image_b64 = body.get('image')
+    if not image_b64:
+        return jsonify(error="missing 'image' field"), 400
+
+    try:
+        image = BytesIO(base64.urlsafe_b64decode(image_b64))
+    except (binascii.Error, ValueError):
+        return jsonify(error="'image' is not valid base64"), 400
+
+    try:
+        equation = recognize(image)
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 422
+    except OSError:
+        return jsonify(error="could not decode the image data"), 400
+
+    if not equation:
+        return jsonify(error="no characters detected in the image"), 422
+
+    formatted_equation, solution = calculate(equation)
+    if solution is None:
+        return jsonify(
+            entered_equation=equation,
+            formatted_equation=formatted_equation,
+            error="could not solve the recognized expression",
+        ), 422
+
+    return jsonify(
+        entered_equation=equation,
+        formatted_equation=formatted_equation,
+        solution=str(solution),
+    )
+
+
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000, debug=True)

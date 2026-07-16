@@ -1,10 +1,8 @@
 flask
-flask-restful
 flask-cors
 tensorflow
 tf-keras
 opencv-python
 pillow
-pandas
 numpy
 sympy

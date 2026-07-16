@@ -3,7 +3,6 @@ import {Form, Row, Col} from 'react-bootstrap';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
 function Output (props) {
-	// console.log(props);
 	return (
 		<div className="offset-md-1">
 			<Form>
@@ -12,7 +11,7 @@ function Output (props) {
 					Entered Equation
 				</Form.Label>
 				<Col sm="5">
-					<Form.Control readOnly placeholder={props.equation} />
+					<Form.Control readOnly value={props.equation || ""} />
 				</Col>
 				</Form.Group>
 				<Form.Group as={Row} controlId="output1">
@@ -20,7 +19,7 @@ function Output (props) {
 					Formatted Equation
 				</Form.Label>
 				<Col sm="5">
-					<Form.Control readOnly placeholder={props.formatted_equation} />
+					<Form.Control readOnly value={props.formatted_equation || ""} />
 				</Col>
 				</Form.Group>
 				<Form.Group as={Row} controlId="output2">
@@ -28,7 +27,7 @@ function Output (props) {
 					Result
 				</Form.Label>
 				<Col sm="5">
-					<Form.Control readOnly placeholder={props.result} />
+					<Form.Control readOnly value={props.result || ""} />
 				</Col>
 				</Form.Group>
 			</Form>

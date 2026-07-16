@@ -1,79 +1,82 @@
-import React, {Component} from "react";
+import React, { Component } from "react";
 import P5Wrapper from "react-p5-wrapper";
+import { Alert, Spinner } from "react-bootstrap";
 import sketch from "./sketches/sketch";
 import UploadButton from "./UploadButton";
 import Output from "./Output";
 import "bootstrap/dist/css/bootstrap.min.css";
 
-let savedImage = "";
+const API_URL = process.env.REACT_APP_API_URL || "http://127.0.0.1:5000";
 
 class Canvas extends Component {
   constructor() {
     super();
     this.state = {
-      color: false,
-      evaluate: false,
+      clearCount: 0,
+      loading: false,
+      error: "",
       equation: "",
       formatted_equation: "",
       result: "",
     };
   }
 
-  pseudo = (data) => {
-    savedImage = data;
-  };
-
   sendImgToServer = (image) => {
-    console.log("req:", image);
     // strip any data-URL prefix (canvas gives png, uploads may be jpeg)
-    let img = image.replace(/^data:image\/\w+;base64,/, "");
+    const img = image.replace(/^data:image\/\w+;base64,/, "");
 
-    let data = {};
-    data.image = img;
+    this.setState({
+      loading: true,
+      error: "",
+      equation: "",
+      formatted_equation: "",
+      result: "",
+    });
 
-    fetch("http://127.0.0.1:5000/predict", {
+    fetch(`${API_URL}/predict`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(data),
+      body: JSON.stringify({ image: img }),
     })
-      .then((response) => response.json())
+      .then(async (response) => {
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || `request failed (${response.status})`);
+        }
+        return data;
+      })
       .then((data) => {
-        let data1 = JSON.parse(data);
-        console.log("Success:", data1);
         this.setState({
-          color: false,
-          evaluate: false,
-          equation: data1["Entered_equation"],
-          formatted_equation: data1["Formatted_equation"],
-          result: data1["solution"],
+          loading: false,
+          equation: data.entered_equation,
+          formatted_equation: data.formatted_equation,
+          result: data.solution,
         });
-        console.log(this.state);
       })
       .catch((error) => {
-        console.error("Error:", error);
+        this.setState({
+          loading: false,
+          error: error.message || "could not reach the server",
+        });
       });
   };
 
-  onClear = () => {
-    this.setState({
-      color: true,
-      evaluate: false,
-      equation: "",
-      formatted_equation: "",
-      result: "",
-    });
+  onEvaluate = () => {
+    const canvas = document.querySelector("canvas");
+    if (!canvas) return;
+    this.sendImgToServer(canvas.toDataURL());
   };
 
-  onEval = () => {
-    this.setState({
-      color: false,
-      evaluate: true,
+  onClear = () => {
+    this.setState((prev) => ({
+      clearCount: prev.clearCount + 1,
+      error: "",
       equation: "",
       formatted_equation: "",
       result: "",
-    });
+    }));
   };
 
   render() {
@@ -88,26 +91,25 @@ class Canvas extends Component {
         <br />
         <div className="row align-items-center">
           <div className="col-12 col-md-6 border border-dark offset-md-2">
-            <P5Wrapper
-              sketch={sketch}
-              color={this.state.color}
-              evaluate={this.state.evaluate}
-              callBack={this.pseudo}
-            ></P5Wrapper>
+            <P5Wrapper sketch={sketch} clearCount={this.state.clearCount}></P5Wrapper>
           </div>
           <div className="col-6 col-md-2">
             <div className="row">
               <div className="col">
                 <button
                   type="button"
-                  onClick={
-                    this.state.evaluate
-                      ? () => this.sendImgToServer(savedImage)
-                      : this.onEval
-                  }
+                  onClick={this.onEvaluate}
+                  disabled={this.state.loading}
                   className="btn btn-primary btn-block "
                 >
-                  {this.state.evaluate ? "Evaluate" : "Save"}
+                  {this.state.loading ? (
+                    <>
+                      <Spinner as="span" animation="border" size="sm" />{" "}
+                      Evaluating...
+                    </>
+                  ) : (
+                    "Evaluate"
+                  )}
                 </button>
               </div>
             </div>
@@ -117,6 +119,7 @@ class Canvas extends Component {
                 <button
                   type="button"
                   onClick={this.onClear}
+                  disabled={this.state.loading}
                   className="btn btn-danger btn-block "
                 >
                   Clear
@@ -126,10 +129,20 @@ class Canvas extends Component {
           </div>
         </div>
         <br />
+        <div className="row">
+          <div className="col-12 col-md-6 offset-md-2">
+            {this.state.error && (
+              <Alert variant="danger">{this.state.error}</Alert>
+            )}
+          </div>
+        </div>
         <br />
         <div className="row">
           <div className="offset-md-3">
-            <UploadButton sendImgToServer={this.sendImgToServer} />
+            <UploadButton
+              sendImgToServer={this.sendImgToServer}
+              disabled={this.state.loading}
+            />
           </div>
         </div>
         <br />
