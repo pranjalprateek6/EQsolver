@@ -17,6 +17,29 @@ The recognized equation is editable, so a misread is a quick fix rather than a w
 - `frontend/` React 18 + Vite app (drawing canvas, upload, results)
 - `backend/` Flask API, image segmentation, trained model (`model.h5`)
 
+## The model
+
+A small convolutional classifier that reads one handwritten symbol at a time.
+
+- File: `backend/model.h5`, about 5 MB, roughly 432k parameters, loaded once at startup.
+- Framework: TensorFlow 2.21 via the Keras 2 compat package (`tf_keras`), running on CPU.
+- Input: a 28x28 grayscale glyph. Output: 21 classes.
+- Classes: digits `0-9`, `+ - × ÷ =`, `( )`, `√`, and variables `x y z`.
+
+Architecture: Conv(32), Conv(32), MaxPool, Dropout, Conv(64), MaxPool, Dropout, Flatten, Dense(128), Dropout, Dense(21, softmax). It classifies each character in isolation; the 2D structure (powers, fractions, roots) is added afterward by the spatial parser, not the network.
+
+### Training
+
+The model is trained on the Kaggle "handwritten math symbols" dataset (xainano). Of its 82 symbol folders, the 21 math-relevant classes are used, each capped at 6,000 images (about 110k total) with balanced class weights and a 90/10 train and validation split. Training runs on CPU in a few minutes (Adam, 20 epochs) and reaches about 98% validation accuracy. See `backend/training/` to reproduce.
+
+Training and inference share the same aspect-preserving preprocessing in `backend/preprocess.py`: threshold to find the ink, crop to it, scale into a 28x28 box keeping the aspect ratio, center, and normalize.
+
+### Limitations
+
+- It reads symbols one at a time with no context, so operators can be misread on handwriting far from the training style. The recognized equation is editable, so any misread is a quick fix before solving.
+- The variable `x` and the multiplication sign `×` look nearly identical by hand, which is the model's weakest distinction (about 86%).
+- Scope is basic algebra: digits, the four operators, parentheses, powers, fractions, and roots over `x y z`. There is no decimal point, no slash for division (draw `÷` or a fraction bar), and no trigonometry, logarithms, functions, or calculus. Reaching those needs a different, context-aware model (image to LaTeX).
+
 ## Setup
 
 ### With Docker
@@ -69,14 +92,23 @@ Both suites also run in CI on every push.
 
 ## Usage
 
-Draw an equation and click Evaluate. The recognized equation, its formatted version, and the solution appear below the canvas.
+Draw an equation and click Evaluate, or pick one of the example chips. The segmentation preview, the editable recognized equation, and the solution appear in the results panel beside the canvas. If a symbol is misread, fix it in the recognized field and press Solve.
 
 ## API
 
-`POST /predict` with `{"image": "<url-safe base64>"}` returns:
+`POST /predict` with `{"image": "<url-safe base64>"}` returns the recognized characters (each with its confidence and a preview image), the recognized expression, its LaTeX, and the solution:
 
 ```json
-{"entered_equation": "8t3", "formatted_equation": "8+3", "solution": "11"}
+{
+  "characters": [{"char": "8", "confidence": 1.0, "image": "data:image/png;base64,..."}],
+  "recognized": "8+3",
+  "formatted_equation": "8+3",
+  "latex": "8 + 3",
+  "solution": "11",
+  "solved": true
+}
 ```
+
+`POST /solve` with `{"expression": "x**2=4"}` re-solves an edited expression without the model.
 
 Errors come back as `{"error": "..."}` with a 400 or 422 status.
