@@ -165,6 +165,28 @@
   border-top: 2px solid var(--line);
 }
 
+.upload {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.upload__pick {
+  margin: 0;
+  cursor: pointer;
+}
+
+.upload__name {
+  color: var(--muted);
+  font-size: 0.88rem;
+  flex: 1;
+  min-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .board-alert {
   margin: 0 0 16px;
   border-radius: 0 !important;

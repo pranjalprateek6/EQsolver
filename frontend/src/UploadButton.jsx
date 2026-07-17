@@ -6,12 +6,14 @@ const VALID_EXTENSIONS = ['jpg', 'jpeg', 'png'];
 function UploadButton({ sendImgToServer, disabled }) {
     const [imgBase64, setImgBase64] = useState('');
     const [imgUrl, setImgUrl] = useState('');
+    const [fileName, setFileName] = useState('');
     const [uploadError, setUploadError] = useState(false);
     const [showModal, setShowModal] = useState(false);
 
     const validateFile = (event) => {
         const file = event.target.files[0];
         if (!file) return;
+        setFileName(file.name);
         const extension = file.name.substring(file.name.lastIndexOf('.') + 1).toLowerCase();
         if (VALID_EXTENSIONS.includes(extension)) {
             const reader = new FileReader();
@@ -32,8 +34,17 @@ function UploadButton({ sendImgToServer, disabled }) {
 
     return (
         <div>
-            <div>
-                <input type="file" accept=".jpg,.jpeg,.png" onChange={validateFile} />
+            <div className="upload">
+                <label className="btn btn-outline-secondary upload__pick">
+                    Choose image
+                    <input
+                        type="file"
+                        accept=".jpg,.jpeg,.png"
+                        onChange={validateFile}
+                        hidden
+                    />
+                </label>
+                <span className="upload__name">{fileName || 'No file chosen'}</span>
                 <button
                     type="button"
                     className="btn btn-primary"
