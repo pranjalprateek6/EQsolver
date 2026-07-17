@@ -167,8 +167,8 @@
 
 .board-alert {
   margin: 0 0 16px;
-  border-radius: var(--radius);
-  border: 2px solid var(--bad);
+  border-radius: 0 !important;
+  border: 2px solid var(--bad) !important;
   box-shadow: var(--shadow-card);
 }
 
