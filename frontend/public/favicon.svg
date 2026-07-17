@@ -1,5 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <rect width="32" height="32" fill="#4f46e5"/>
-  <path d="M4 18 L10 27 L18 6 L29 6" fill="none" stroke="#ffffff" stroke-width="3.2"
-        stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="16" y="25" text-anchor="middle" fill="#ffffff"
+        font-family="Georgia, 'Times New Roman', serif" font-style="italic"
+        font-weight="700" font-size="26">x</text>
 </svg>
