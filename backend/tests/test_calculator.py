@@ -44,6 +44,11 @@ class TestSolveExpression:
         # the spatial parser emits explicit fractions like this
         assert solve_expression('((1)/(2))')[1] == pytest.approx(0.5)
 
+    def test_human_operators_normalized(self):
+        # typed × and ÷ solve like * and /
+        assert solve_expression('6÷2')[1] == 3
+        assert solve_expression('3×4')[1] == 12
+
     def test_empty(self):
         assert solve_expression('   ') == ('', None)
 

@@ -175,9 +175,10 @@ function Canvas() {
         </div>
 
         <p className="hint">
-          Supported: digits <code>0-9</code>, variables <code>x y z</code>,{" "}
-          <code>+ - × ÷ =</code>, parentheses, powers (write small and raised),
-          and roots. Write on the guide line.
+          Draw with: digits <code>0-9</code>, variables <code>x y z</code>,{" "}
+          <code>+ - × ÷ =</code>, parentheses, powers (small and raised), and
+          roots. For division draw <code>÷</code> or a fraction bar, not a slash.
+          Keep symbols on the guide line.
         </p>
 
         <div className="examples">

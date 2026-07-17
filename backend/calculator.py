@@ -53,7 +53,8 @@ def solve_expression(expression):
     symbol substitution or implicit-operator insertion: the input is already
     explicit (** for powers, sqrt(), *, /).
     """
-    expression = str(expression).strip()
+    # accept the human operators too, so typed '×'/'÷' solve like '*'/'/'
+    expression = str(expression).strip().replace('×', '*').replace('÷', '/')
     if not expression:
         return expression, None
     if '=' in expression:
