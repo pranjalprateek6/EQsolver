@@ -69,11 +69,10 @@ def build_model(num_classes):
     from tf_keras import layers, models
     model = models.Sequential([
         layers.Input((TARGET, TARGET, 1)),
-        # light augmentation (training only) for position/scale robustness.
-        # No rotation on purpose: it would blur the already-hard distinction
-        # between the variable 'x' and the multiplication sign '×'.
-        layers.RandomTranslation(0.08, 0.08, fill_mode='constant', fill_value=0.0),
-        layers.RandomZoom(0.1, fill_mode='constant', fill_value=0.0),
+        # Note: rotation/translation/zoom augmentation was tried and dropped.
+        # preprocess.py already centres and size-normalizes every glyph, so
+        # those augmentations added no signal and cost ~1% accuracy (rotation
+        # also worsened the x vs × confusion). The plain model trains best.
         layers.Conv2D(32, 3, activation='relu', padding='same'),
         layers.Conv2D(32, 3, activation='relu', padding='same'),
         layers.MaxPooling2D(),
