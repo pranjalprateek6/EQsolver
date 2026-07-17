@@ -110,6 +110,39 @@
   border-radius: 6px;
 }
 
+.examples {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.examples__label {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.examples__chip {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--primary);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.examples__chip:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.examples__chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .upload-row {
   margin-top: 16px;
   padding-top: 16px;

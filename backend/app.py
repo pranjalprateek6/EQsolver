@@ -1,15 +1,19 @@
 import base64
 import binascii
+import os
 from io import BytesIO
 
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from calculator import solve_expression, to_latex
 from main import recognize
 from structure import build_expression
 
-app = Flask(__name__)
+# in a production build the compiled frontend is copied here and served by Flask
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+
+app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='')
 CORS(app)
 
 
@@ -19,6 +23,8 @@ def _solution_str(solution):
 
 @app.route('/')
 def index():
+    if os.path.exists(os.path.join(STATIC_DIR, 'index.html')):
+        return send_from_directory(STATIC_DIR, 'index.html')
     return "<h1>Equations Solver</h1>"
 
 

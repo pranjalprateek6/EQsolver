@@ -21,11 +21,21 @@ The recognized equation is editable, so a misread is a quick fix rather than a w
 
 ### With Docker
 
+Local development (frontend and backend as separate services with hot reload):
+
 ```
 docker compose up --build
 ```
 
 Frontend at http://localhost:3000, API at http://localhost:5000.
+
+Production (single image: Flask serves the built frontend and the API on one
+port, which is all a host like Render, Railway or Fly needs):
+
+```
+docker build -t eqsolver .
+docker run -p 5000:5000 eqsolver     # open http://localhost:5000
+```
 
 ### Manual
 

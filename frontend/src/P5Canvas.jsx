@@ -17,18 +17,25 @@ function P5Canvas({ instanceRef }) {
     const instance = new p5(makeSketch(width, height), container);
     if (instanceRef) instanceRef.current = instance;
 
+    // keep the canvas resolution matched to the container width. Both a
+    // ResizeObserver (container changes) and window resize (viewport changes,
+    // which some browsers miss on the observer) trigger a re-sync.
+    const syncSize = () => {
+      const w = container.clientWidth;
+      if (w > 0 && Math.abs(w - instance.width) > 1 && instance.resizeTo) {
+        instance.resizeTo(w, Math.round(w * ASPECT));
+      }
+    };
+
     let observer;
     if (typeof ResizeObserver !== "undefined") {
-      observer = new ResizeObserver((entries) => {
-        const w = Math.round(entries[0].contentRect.width);
-        if (w > 0 && Math.abs(w - instance.width) > 1 && instance.resizeTo) {
-          instance.resizeTo(w, Math.round(w * ASPECT));
-        }
-      });
+      observer = new ResizeObserver(syncSize);
       observer.observe(container);
     }
+    window.addEventListener("resize", syncSize);
 
     return () => {
+      window.removeEventListener("resize", syncSize);
       if (observer) observer.disconnect();
       if (instanceRef) instanceRef.current = null;
       instance.remove();

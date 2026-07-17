@@ -7,7 +7,11 @@ import ResultPanel from "./ResultPanel";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "./App.css";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
+// In dev the API is on a separate port; in a production build the frontend is
+// served by Flask itself, so calls go to the same origin (relative URLs).
+const API_URL =
+  import.meta.env.VITE_API_URL ??
+  (import.meta.env.DEV ? "http://127.0.0.1:5000" : "");
 
 const EMPTY = {
   characters: [],
@@ -17,6 +21,9 @@ const EMPTY = {
   solution: "",
   solved: false,
 };
+
+// quick things to try without drawing (solved via the /solve endpoint)
+const EXAMPLES = ["8+3", "x**2-5*x+6=0", "sqrt(144)", "(x+1)/2=4"];
 
 function Canvas() {
   const [brush, setBrush] = useState(4);
@@ -72,8 +79,7 @@ function Canvas() {
     sendImgToServer(p5.exportImage());
   };
 
-  const onSolveEdited = () => {
-    const expression = recognized.trim();
+  const solveExpr = (expression) => {
     if (!expression) return;
     setSolving(true);
     setError("");
@@ -93,6 +99,15 @@ function Canvas() {
       .finally(() => setSolving(false));
   };
 
+  const onSolveEdited = () => solveExpr(recognized.trim());
+
+  const onExample = (expression) => {
+    setError("");
+    setResult({ ...EMPTY, recognized: expression });
+    setRecognized(expression);
+    solveExpr(expression);
+  };
+
   const onBrushChange = (value) => {
     setBrush(value);
     p5Ref.current?.setStrokeWeight(value);
@@ -107,7 +122,7 @@ function Canvas() {
     setRecognized("");
   };
 
-  const hasResult = result.characters.length > 0;
+  const hasResult = result.characters.length > 0 || result.recognized;
 
   return (
     <div className="app-shell">
@@ -163,6 +178,21 @@ function Canvas() {
           <code>+ - × ÷ =</code>, parentheses, powers (write small and raised),
           and roots. Write on the guide line.
         </p>
+
+        <div className="examples">
+          <span className="examples__label">Or try:</span>
+          {EXAMPLES.map((ex) => (
+            <button
+              key={ex}
+              type="button"
+              className="examples__chip"
+              onClick={() => onExample(ex)}
+              disabled={solving}
+            >
+              {ex}
+            </button>
+          ))}
+        </div>
 
         <div className="upload-row">
           <UploadButton sendImgToServer={sendImgToServer} disabled={loading} />

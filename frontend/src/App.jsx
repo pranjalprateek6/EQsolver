@@ -1,10 +1,13 @@
 import './App.css';
 import Canvas from './Canvas';
+import ErrorBoundary from './ErrorBoundary';
 
 function App() {
   return (
     <div className="App">
-      <Canvas />
+      <ErrorBoundary>
+        <Canvas />
+      </ErrorBoundary>
     </div>
   );
 }
