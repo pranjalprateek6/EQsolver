@@ -9,6 +9,11 @@ backend/.venv/
 __pycache__/
 .pytest_cache/
 
+# training data and generated model artifacts
+backend/training/data/
+backend/**/model_v2*.h5
+backend/**/mapper_v2*.csv
+
 # misc
 .DS_Store
 *.local

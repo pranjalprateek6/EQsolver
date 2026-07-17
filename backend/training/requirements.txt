@@ -1,0 +1,2 @@
+# extra dependencies for training only (the app itself does not need these)
+kaggle
