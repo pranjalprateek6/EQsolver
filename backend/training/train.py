@@ -22,19 +22,23 @@ from preprocess import TARGET, to_model_input  # noqa: E402
 
 # dataset folder name -> the symbol the model should emit. Folders not listed
 # here are ignored, so the model spends its capacity only on math symbols.
+# Note on this dataset: the variable x lives in folder 'X', there is no decimal
+# point, and 'forward_slash' has too few samples to be worth a class (division
+# is covered by '÷' and by fraction bars in the spatial parser).
 CLASS_MAP = {
     '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
     '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
     '+': '+', '-': '-', '=': '=',
-    'times': '×', 'div': '÷', 'forward_slash': '/',
+    'times': '×', 'div': '÷',
     '(': '(', ')': ')',
-    'x': 'x', 'y': 'y', 'z': 'z',
-    'sqrt': '√', 'dot': '.', '.': '.',
+    'sqrt': '√',
+    'X': 'x', 'y': 'y', 'z': 'z',
 }
 
 
 def load_dataset(data_dir, per_class_limit=None):
     images, labels, symbols = [], [], []
+    rng = np.random.RandomState(42)
     for folder in sorted(os.listdir(data_dir)):
         symbol = CLASS_MAP.get(folder)
         if symbol is None:
@@ -46,8 +50,10 @@ def load_dataset(data_dir, per_class_limit=None):
             symbols.append(symbol)
         label = symbols.index(symbol)
         files = sorted(os.listdir(folder_path))
-        if per_class_limit:
-            files = files[:per_class_limit]
+        if per_class_limit and len(files) > per_class_limit:
+            # random subset so a cap does not bias toward alphabetical filenames
+            pick = rng.permutation(len(files))[:per_class_limit]
+            files = [files[i] for i in pick]
         for name in files:
             gray = cv2.imread(os.path.join(folder_path, name), cv2.IMREAD_GRAYSCALE)
             if gray is None:
@@ -97,7 +103,7 @@ def make_synthetic(symbols, per_class=40):
 
 
 def write_mapper(symbols, path):
-    with open(path, 'w', newline='') as f:
+    with open(path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         writer.writerow(['id', 'char'])
         for i, symbol in enumerate(symbols):
@@ -130,9 +136,15 @@ def main():
     x, y = x[perm], y[perm]
     split = int(len(x) * 0.9)
 
+    # balanced class weights so rarer symbols (÷, √) are not swamped by digits
+    train_y = y[:split]
+    counts = np.bincount(train_y, minlength=len(symbols))
+    total = len(train_y)
+    class_weight = {i: total / (len(symbols) * c) for i, c in enumerate(counts) if c}
+
     model = build_model(len(symbols))
-    model.fit(x[:split], y[:split], validation_data=(x[split:], y[split:]),
-              epochs=epochs, batch_size=128, verbose=2)
+    model.fit(x[:split], train_y, validation_data=(x[split:], y[split:]),
+              epochs=epochs, batch_size=128, verbose=2, class_weight=class_weight)
 
     model.save(args.out_model)
     write_mapper(symbols, args.out_mapper)

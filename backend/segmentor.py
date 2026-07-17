@@ -98,17 +98,20 @@ def _line_letters(line_img):
 		x0 = max(x - CROP_MARGIN, 0)
 		crop = line_img[y0:y + h + CROP_MARGIN, x0:x + w + CROP_MARGIN]
 		if crop.size:
-			# invert to black character on white background
-			letters.append(PIXEL_SET - crop)
+			# invert to black character on white background, and keep the box
+			# (x, y are in line-image coordinates; y is offset to the full image
+			# by the caller) so the spatial parser can read the 2D layout
+			letters.append({'crop': PIXEL_SET - crop, 'x': x, 'y': y, 'w': w, 'h': h})
 	return letters
 
 
 def segment_characters(gray_img):
-	"""Segment a grayscale equation image into per-character crops.
+	"""Segment a grayscale equation image into per-character pieces.
 
-	Takes a 2D numpy array and returns a list of numpy arrays (black
-	character on white background), ordered left to right, top line first.
-	Raises ValueError if no clean text lines can be detected.
+	Takes a 2D numpy array and returns a list of dicts, each with a 'crop'
+	(black character on white background) and its 'x','y','w','h' bounding box
+	in the resized-image coordinate space, ordered left to right, top line
+	first. Raises ValueError if no clean text lines can be detected.
 	"""
 	orig_height, orig_width = gray_img.shape
 	width = TARGET_WIDTH
@@ -129,7 +132,9 @@ def segment_characters(gray_img):
 	if len(upperlines) != len(lowerlines):
 		raise ValueError("could not detect equation lines, the image is too noisy")
 
-	crops = []
+	pieces = []
 	for top, bottom in zip(upperlines, lowerlines):
-		crops.extend(_line_letters(bin_img[top:bottom, :]))
-	return crops
+		for piece in _line_letters(bin_img[top:bottom, :]):
+			piece['y'] += top  # line-relative y -> full-image y
+			pieces.append(piece)
+	return pieces

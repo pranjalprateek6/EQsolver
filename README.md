@@ -6,8 +6,11 @@ Handwritten equation solver. Draw an equation on a canvas or upload an image, an
 
 1. The React frontend captures a drawn or uploaded equation image.
 2. The Flask backend segments the image into individual characters using OpenCV, entirely in memory.
-3. A CNN classifies each 28x28 character.
-4. SymPy evaluates arithmetic expressions and solves algebraic equations (for example `x2=4` gives `[-2, 2]`).
+3. A CNN classifies each 28x28 character into a math symbol (`0-9`, `+ - × ÷ =`, `( )`, `√`, and variables `x y z`).
+4. A spatial parser reads the 2D layout (superscripts as powers, bars as fractions, radicals as roots) into an explicit expression.
+5. SymPy evaluates arithmetic and solves algebraic equations (for example `x²=4` gives `x = -2, 2`), and the result is rendered with KaTeX.
+
+The recognized equation is editable, so a misread is a quick fix rather than a wrong answer. Retraining the classifier on math symbols (see `backend/training/`) is what removed the old letter-substitution guesswork.
 
 ## Project structure
 

@@ -13,6 +13,7 @@ const EMPTY = {
   characters: [],
   recognized: "",
   formatted: "",
+  latex: "",
   solution: "",
   solved: false,
 };
@@ -52,6 +53,7 @@ function Canvas() {
           characters: data.characters,
           recognized: data.recognized,
           formatted: data.formatted_equation,
+          latex: data.latex,
           solution: data.solution,
           solved: data.solved,
         });
@@ -82,6 +84,7 @@ function Canvas() {
           ...prev,
           recognized: expression,
           formatted: data.formatted_equation,
+          latex: data.latex,
           solution: data.solution,
           solved: true,
         }));
@@ -156,8 +159,9 @@ function Canvas() {
         </div>
 
         <p className="hint">
-          Supported: digits <code>0-9</code>, variable <code>x</code>, and{" "}
-          <code>+ - = /</code>. Write one symbol at a time, sitting on the guide line.
+          Supported: digits <code>0-9</code>, variables <code>x y z</code>,{" "}
+          <code>+ - × ÷ =</code>, parentheses, powers (write small and raised),
+          and roots. Write on the guide line.
         </p>
 
         <div className="upload-row">
@@ -179,7 +183,7 @@ function Canvas() {
             onRecognizedChange={setRecognized}
             onSolve={onSolveEdited}
             solving={solving}
-            formatted={result.formatted}
+            latex={result.latex}
             solution={result.solution}
             solved={result.solved}
           />

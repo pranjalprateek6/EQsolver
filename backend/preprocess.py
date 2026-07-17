@@ -16,15 +16,21 @@ PAD = 4
 
 def to_model_input(gray):
     """Normalize a grayscale crop (dark ink on light background) to a 28x28
-    float array with ink = 1.0 and background = 0.0."""
-    # Otsu threshold, inverted so the ink becomes the foreground (255)
-    _, ink = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    float array with ink near 1.0 and background 0.0.
 
-    ys, xs = np.where(ink > 0)
+    The image is kept as antialiased grayscale rather than re-binarized after
+    downscaling: shrinking a thin binary stroke averages it down to faint
+    values, so a hard threshold afterwards erases thin glyphs like '1' or '+'.
+    """
+    # Otsu mask, only used to find the ink bounding box
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+    ys, xs = np.where(mask > 0)
     if len(xs) == 0:
         return np.zeros((TARGET, TARGET), dtype=np.float32)
 
-    crop = ink[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    # invert so ink is bright, then crop to the glyph
+    inverted = 255.0 - gray.astype(np.float32)
+    crop = inverted[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     h, w = crop.shape
 
     inner = TARGET - 2 * PAD
@@ -33,9 +39,13 @@ def to_model_input(gray):
     nw = max(1, int(round(w * scale)))
     resized = cv2.resize(crop, (nw, nh), interpolation=cv2.INTER_AREA)
 
-    canvas = np.zeros((TARGET, TARGET), dtype=np.uint8)
+    canvas = np.zeros((TARGET, TARGET), dtype=np.float32)
     oy = (TARGET - nh) // 2
     ox = (TARGET - nw) // 2
     canvas[oy:oy + nh, ox:ox + nw] = resized
 
-    return (canvas > 127).astype(np.float32)
+    # scale to 0..1 by the glyph's own peak so faint strokes keep full contrast
+    peak = canvas.max()
+    if peak > 0:
+        canvas /= peak
+    return canvas

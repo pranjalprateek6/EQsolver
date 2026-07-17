@@ -199,6 +199,14 @@
   gap: 20px;
 }
 
+.result__math {
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
 .result__field {
   display: flex;
   flex-direction: column;

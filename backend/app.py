@@ -5,11 +5,16 @@ from io import BytesIO
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from calculator import solve_text, substitute
+from calculator import solve_expression, to_latex
 from main import recognize
+from structure import build_expression
 
 app = Flask(__name__)
 CORS(app)
+
+
+def _solution_str(solution):
+    return "" if solution is None else str(solution)
 
 
 @app.route('/')
@@ -30,27 +35,29 @@ def predict():
         return jsonify(error="'image' is not valid base64"), 400
 
     try:
-        characters = recognize(image)
+        tokens = recognize(image)
     except ValueError as exc:
         return jsonify(error=str(exc)), 422
     except OSError:
         return jsonify(error="could not decode the image data"), 400
 
-    if not characters:
+    if not tokens:
         return jsonify(error="no characters detected in the image"), 422
 
-    # attach the human-readable symbol for each glyph (t -> +, S -> = ...)
-    for char in characters:
-        char['char'] = substitute(char['raw'])
+    # read the 2D layout into an explicit expression, then solve it
+    expression = build_expression(tokens)
+    expression, solution = solve_expression(expression)
 
-    recognized = "".join(char['char'] for char in characters)
-    formatted_equation, solution = solve_text(recognized)
-
+    characters = [
+        {'char': t['char'], 'confidence': t['confidence'], 'image': t['image']}
+        for t in tokens
+    ]
     return jsonify(
         characters=characters,
-        recognized=recognized,
-        formatted_equation=formatted_equation,
-        solution="" if solution is None else str(solution),
+        recognized=expression,
+        formatted_equation=expression,
+        latex=to_latex(expression),
+        solution=_solution_str(solution),
         solved=solution is not None,
     )
 
@@ -62,15 +69,16 @@ def solve():
     if expression is None or expression.strip() == "":
         return jsonify(error="missing 'expression' field"), 400
 
-    formatted_equation, solution = solve_text(expression.strip())
+    expression, solution = solve_expression(expression)
     if solution is None:
         return jsonify(
-            formatted_equation=formatted_equation,
+            formatted_equation=expression,
             error="could not solve that expression",
         ), 422
 
     return jsonify(
-        formatted_equation=formatted_equation,
+        formatted_equation=expression,
+        latex=to_latex(expression),
         solution=str(solution),
         solved=True,
     )

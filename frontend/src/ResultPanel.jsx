@@ -1,4 +1,5 @@
 import { Spinner } from "react-bootstrap";
+import MathView from "./MathView";
 
 // Editable recognized equation plus the solution. The user can correct a
 // misread before (or after) solving, which bridges the model's accuracy gap.
@@ -19,7 +20,7 @@ function ResultPanel({
   onRecognizedChange,
   onSolve,
   solving,
-  formatted,
+  latex,
   solution,
   solved,
 }) {
@@ -32,6 +33,7 @@ function ResultPanel({
 
   return (
     <div className="result">
+      {latex && <MathView latex={latex} className="result__math" />}
       <label className="result__field">
         <span className="result__label">Recognized equation</span>
         <span className="result__editrow">
@@ -62,9 +64,6 @@ function ResultPanel({
         <span className={`result__value ${solved ? "" : "result__value--muted"}`}>
           {solved ? formatSolution(solution) : "could not solve, check the equation"}
         </span>
-        {solved && formatted && formatted !== recognized && (
-          <span className="result__formatted">parsed as {formatted}</span>
-        )}
       </div>
     </div>
   );

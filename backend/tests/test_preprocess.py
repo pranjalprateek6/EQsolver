@@ -14,7 +14,16 @@ def test_output_shape_and_range():
     img[40:80, 40:80] = 0  # a solid square blob
     out = to_model_input(img)
     assert out.shape == (TARGET, TARGET)
-    assert set(np.unique(out)).issubset({0.0, 1.0})
+    assert out.min() >= 0.0 and out.max() <= 1.0
+    assert out.max() > 0.9  # ink survives at full contrast
+
+
+def test_thin_stroke_survives():
+    # a thin stroke must not be erased by downscaling (the original bug)
+    img = _canvas()
+    img[20:100, 58:62] = 0
+    out = to_model_input(img)
+    assert out.sum() > 5
 
 
 def test_blank_image_is_empty():

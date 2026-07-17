@@ -24,6 +24,8 @@ RADICAND_GAP = 1.1
 
 SQRT_CHARS = {'sqrt', '√'}
 OPERATORS = set('+-*/=%')
+# recognized math symbols -> their SymPy operator form
+NORMALIZE = {'×': '*', '÷': '/'}
 
 
 def _cx(t):
@@ -185,6 +187,8 @@ def build_expression(tokens):
     """Return a SymPy-ready string for a list of positioned character tokens."""
     if not tokens:
         return ''
+    # normalize display symbols (×, ÷) to their operator form up front
+    tokens = [{**t, 'char': NORMALIZE.get(t['char'], t['char'])} for t in tokens]
     median_h = _median_height(tokens)
-    items = _resolve_structures(list(tokens), median_h)
+    items = _resolve_structures(tokens, median_h)
     return _combine(items)
