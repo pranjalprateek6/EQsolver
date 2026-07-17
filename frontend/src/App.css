@@ -14,6 +14,20 @@
   --shadow-card: 6px 6px 0 rgba(31, 36, 48, 0.10);
   --shadow-btn: 3px 3px 0 rgba(31, 36, 48, 0.20);
   --shadow-btn-hover: 5px 5px 0 rgba(31, 36, 48, 0.22);
+  --font: 'Source Code Pro', ui-monospace, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  /* override Bootstrap's body font so it uses Source Code Pro too */
+  --bs-body-font-family: var(--font);
+}
+
+/* apply the font everywhere, including Bootstrap buttons and inputs (loaded
+   after index.css, so this is where it has to win) */
+body,
+.btn,
+.form-control,
+input,
+button,
+label {
+  font-family: var(--font);
 }
 
 .App {
@@ -35,7 +49,7 @@
 
 .app-title {
   font-size: 2.1rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: -0.02em;
   margin: 0;
 }
@@ -297,7 +311,7 @@
 }
 
 .glyph__char {
-  font-weight: 800;
+  font-weight: 700;
   font-size: 1.1rem;
   line-height: 1;
 }
@@ -371,7 +385,7 @@
 
 .result__value {
   font-size: 1.7rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }

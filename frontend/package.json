@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/source-code-pro": "^5.2.7",
     "bootstrap": "^5.3.3",
     "katex": "^0.18.0",
     "p5": "^1.11.2",
