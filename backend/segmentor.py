@@ -5,6 +5,9 @@ TARGET_WIDTH = 1320
 PIXEL_SET = 255
 MIN_CONTOUR_AREA = 50
 CROP_MARGIN = 5
+# a contour at least this many times wider than tall is a horizontal bar
+# (a stroke of '=', a minus, or a fraction bar) rather than a glyph
+BAR_ASPECT_RATIO = 2.5
 
 
 def line_array(x):
@@ -57,28 +60,48 @@ def refine_array(array_upper, array_lower):
 	return upper, lower
 
 
+def _is_bar(w, h):
+	"""A wide, short contour: an '=' stroke, a minus, or a fraction bar."""
+	return w >= BAR_ASPECT_RATIO * h
+
+
 def get_letter_rect(k, contours):
-	"""Merge vertically stacked contours (e.g. the two bars of '=') into one box."""
-	valid = True
+	"""Resolve one contour into a character box.
+
+	Only the two short strokes of '=' are merged into a single box. Tall glyphs
+	and fraction bars are left alone, so a fraction's numerator, bar and
+	denominator stay as separate boxes for the spatial parser to read. Returns
+	(valid, x, y, w, h); valid is False for the lower stroke of an '=' pair,
+	which the upper stroke already absorbed.
+	"""
 	x, y, w, h = cv2.boundingRect(contours[k])
+	if not _is_bar(w, h):
+		return (True, x, y, w, h)
+
+	# k is a short bar; look for its partner stroke in an '=' sign: another
+	# short bar of similar width, horizontally aligned and vertically close.
 	for i in range(len(contours)):
-		cnt = contours[i]
-		if i == k:
+		if i == k or cv2.contourArea(contours[i]) < MIN_CONTOUR_AREA:
 			continue
-		elif cv2.contourArea(cnt) < MIN_CONTOUR_AREA:
+		x1, y1, w1, h1 = cv2.boundingRect(contours[i])
+		if not _is_bar(w1, h1):
 			continue
+		aligned = abs((x1 + w1 / 2) - (x + w / 2)) < 0.6 * max(w, w1)
+		similar_width = 0.5 <= (w1 / w) <= 2.0
+		# the two strokes together are still wider than tall (an '=' sign);
+		# a fraction's numerator/denominator would make this span much taller
+		span = max(y + h, y1 + h1) - min(y, y1)
+		close = span < max(w, w1)
+		if not (aligned and similar_width and close):
+			continue
+		if y1 > y:
+			# this is the upper stroke; grow the box to cover both
+			nx = min(x, x1)
+			return (True, nx, y, max(x + w, x1 + w1) - nx, (y1 + h1) - y)
+		# this is the lower stroke; the upper one absorbs it
+		return (False, x, y, w, h)
 
-		x1, y1, w1, h1 = cv2.boundingRect(cnt)
-
-		if abs(x1 + w1 / 2 - (x + w / 2)) < 50:
-			if y1 > y:
-				h = abs(y - (y1 + h1))
-				w = abs(x - (x1 + w1))
-			else:
-				valid = False
-			break
-
-	return (valid, x, y, w, h)
+	return (True, x, y, w, h)
 
 
 def _line_letters(line_img):
