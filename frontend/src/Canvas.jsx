@@ -133,7 +133,8 @@ function Canvas() {
         </p>
       </header>
 
-      <section className="board">
+      <div className="workspace">
+      <section className="panel board">
         <div className="canvas-frame">
           <P5Canvas instanceRef={p5Ref} />
         </div>
@@ -199,26 +200,37 @@ function Canvas() {
         </div>
       </section>
 
-      {error && (
-        <Alert variant="danger" className="board-alert">
-          {error}
-        </Alert>
-      )}
-
-      {hasResult && (
-        <section className="results">
-          <SegmentationStrip characters={result.characters} />
-          <ResultPanel
-            recognized={recognized}
-            onRecognizedChange={setRecognized}
-            onSolve={onSolveEdited}
-            solving={solving}
-            latex={result.latex}
-            solution={result.solution}
-            solved={result.solved}
-          />
-        </section>
-      )}
+      <section className="panel results">
+        {error && (
+          <Alert variant="danger" className="board-alert">
+            {error}
+          </Alert>
+        )}
+        {hasResult ? (
+          <>
+            <SegmentationStrip characters={result.characters} />
+            <ResultPanel
+              recognized={recognized}
+              onRecognizedChange={setRecognized}
+              onSolve={onSolveEdited}
+              solving={solving}
+              latex={result.latex}
+              solution={result.solution}
+              solved={result.solved}
+            />
+          </>
+        ) : (
+          !error && (
+            <div className="results__empty">
+              <span className="results__empty-title">Your solution appears here</span>
+              <span className="results__empty-sub">
+                Draw an equation or pick an example to get started.
+              </span>
+            </div>
+          )
+        )}
+      </section>
+      </div>
     </div>
   );
 }
