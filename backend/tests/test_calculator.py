@@ -1,6 +1,12 @@
 import pytest
 
-from calculator import calculate, evaluate_expression, solve_equation
+from calculator import (
+    calculate,
+    evaluate_expression,
+    solve_equation,
+    solve_text,
+    substitute,
+)
 
 
 class TestArithmetic:
@@ -52,6 +58,21 @@ class TestEquations:
     def test_invalid_equation_returns_none(self):
         formatted, result = calculate('xSS')
         assert result is None
+
+
+class TestEditFlow:
+    def test_substitute_maps_glyphs(self):
+        assert substitute('8t3') == '8+3'
+        assert substitute('xt2S5') == 'x+2=5'
+
+    def test_solve_text_does_not_resubstitute(self):
+        # 't' in already-edited text stays literal, it is not turned into '+'
+        formatted, solution = solve_text('8+3')
+        assert formatted == '8+3'
+        assert solution == 11
+
+    def test_solve_text_equation(self):
+        assert solve_text('x2=4') == ('x**2=4', [-2, 2])
 
 
 class TestHelpers:

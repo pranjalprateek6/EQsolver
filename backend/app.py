@@ -5,7 +5,7 @@ from io import BytesIO
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from calculator import calculate
+from calculator import solve_text, substitute
 from main import recognize
 
 app = Flask(__name__)
@@ -30,27 +30,49 @@ def predict():
         return jsonify(error="'image' is not valid base64"), 400
 
     try:
-        equation = recognize(image)
+        characters = recognize(image)
     except ValueError as exc:
         return jsonify(error=str(exc)), 422
     except OSError:
         return jsonify(error="could not decode the image data"), 400
 
-    if not equation:
+    if not characters:
         return jsonify(error="no characters detected in the image"), 422
 
-    formatted_equation, solution = calculate(equation)
+    # attach the human-readable symbol for each glyph (t -> +, S -> = ...)
+    for char in characters:
+        char['char'] = substitute(char['raw'])
+
+    recognized = "".join(char['char'] for char in characters)
+    formatted_equation, solution = solve_text(recognized)
+
+    return jsonify(
+        characters=characters,
+        recognized=recognized,
+        formatted_equation=formatted_equation,
+        solution="" if solution is None else str(solution),
+        solved=solution is not None,
+    )
+
+
+@app.route('/solve', methods=['POST'])
+def solve():
+    body = request.get_json(silent=True) or {}
+    expression = body.get('expression')
+    if expression is None or expression.strip() == "":
+        return jsonify(error="missing 'expression' field"), 400
+
+    formatted_equation, solution = solve_text(expression.strip())
     if solution is None:
         return jsonify(
-            entered_equation=equation,
             formatted_equation=formatted_equation,
-            error="could not solve the recognized expression",
+            error="could not solve that expression",
         ), 422
 
     return jsonify(
-        entered_equation=equation,
         formatted_equation=formatted_equation,
         solution=str(solution),
+        solved=True,
     )
 
 

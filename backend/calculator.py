@@ -25,6 +25,14 @@ SUBSTITUTIONS = {
 }
 
 
+def substitute(raw):
+    """Map raw model glyph labels to human math symbols (t -> +, S -> = ...)."""
+    string = str(raw)
+    for wrong, right in SUBSTITUTIONS.items():
+        string = string.replace(wrong, right)
+    return string
+
+
 def _parse(expression):
     return parse_expr(expression, transformations=TRANSFORMATIONS)
 
@@ -67,15 +75,22 @@ def _insert_implicit_operators(operation):
     return string
 
 
-def calculate(operation):
-    """Return (formatted_expression, solution) for a recognized string."""
-    string = str(operation)
-    for wrong, right in SUBSTITUTIONS.items():
-        string = string.replace(wrong, right)
+def solve_text(text):
+    """Solve already-human math text (e.g. '8+3' or 'x2=4').
 
+    Returns (formatted_expression, solution). This is the path used both
+    for freshly recognized equations and for text the user has edited by
+    hand, so it must not re-apply the glyph substitutions.
+    """
+    string = str(text)
     if '=' not in string:
         string = string.replace('x', '*').replace('X', '*')
         return string, evaluate_expression(string)
 
-    string = _insert_implicit_operators(string)
-    return string, solve_equation(string)
+    formatted = _insert_implicit_operators(string)
+    return formatted, solve_equation(formatted)
+
+
+def calculate(operation):
+    """Return (formatted_expression, solution) for a raw recognized string."""
+    return solve_text(substitute(operation))

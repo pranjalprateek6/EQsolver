@@ -2,135 +2,189 @@ import { useRef, useState } from "react";
 import { Alert, Spinner } from "react-bootstrap";
 import P5Canvas from "./P5Canvas";
 import UploadButton from "./UploadButton";
-import Output from "./Output";
+import SegmentationStrip from "./SegmentationStrip";
+import ResultPanel from "./ResultPanel";
 import "bootstrap/dist/css/bootstrap.min.css";
+import "./App.css";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000";
 
-const EMPTY_RESULT = { equation: "", formatted_equation: "", result: "" };
+const EMPTY = {
+  characters: [],
+  recognized: "",
+  formatted: "",
+  solution: "",
+  solved: false,
+};
 
 function Canvas() {
+  const [brush, setBrush] = useState(4);
   const [loading, setLoading] = useState(false);
+  const [solving, setSolving] = useState(false);
   const [error, setError] = useState("");
-  const [output, setOutput] = useState(EMPTY_RESULT);
+  const [result, setResult] = useState(EMPTY);
+  const [recognized, setRecognized] = useState("");
   const p5Ref = useRef(null);
 
-  const sendImgToServer = (image) => {
-    // strip any data-URL prefix (canvas gives png, uploads may be jpeg)
-    const img = image.replace(/^data:image\/\w+;base64,/, "");
+  const post = (path, payload) =>
+    fetch(`${API_URL}${path}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(async (response) => {
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `request failed (${response.status})`);
+      }
+      return data;
+    });
 
+  const sendImgToServer = (image) => {
+    const img = image.replace(/^data:image\/\w+;base64,/, "");
     setLoading(true);
     setError("");
-    setOutput(EMPTY_RESULT);
+    setResult(EMPTY);
+    setRecognized("");
 
-    fetch(`${API_URL}/predict`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ image: img }),
-    })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.error || `request failed (${response.status})`);
-        }
-        return data;
-      })
+    post("/predict", { image: img })
       .then((data) => {
-        setOutput({
-          equation: data.entered_equation,
-          formatted_equation: data.formatted_equation,
-          result: data.solution,
+        setResult({
+          characters: data.characters,
+          recognized: data.recognized,
+          formatted: data.formatted_equation,
+          solution: data.solution,
+          solved: data.solved,
         });
+        setRecognized(data.recognized);
       })
-      .catch((err) => {
-        setError(err.message || "could not reach the server");
-      })
-      .finally(() => {
-        setLoading(false);
-      });
+      .catch((err) => setError(err.message || "could not reach the server"))
+      .finally(() => setLoading(false));
   };
 
   const onEvaluate = () => {
-    const canvas = document.querySelector("canvas");
-    if (!canvas) return;
-    sendImgToServer(canvas.toDataURL());
+    const p5 = p5Ref.current;
+    if (!p5 || p5.isEmpty()) {
+      setError("draw an equation first");
+      return;
+    }
+    sendImgToServer(p5.exportImage());
   };
+
+  const onSolveEdited = () => {
+    const expression = recognized.trim();
+    if (!expression) return;
+    setSolving(true);
+    setError("");
+
+    post("/solve", { expression })
+      .then((data) => {
+        setResult((prev) => ({
+          ...prev,
+          recognized: expression,
+          formatted: data.formatted_equation,
+          solution: data.solution,
+          solved: true,
+        }));
+      })
+      .catch((err) => setError(err.message || "could not solve that expression"))
+      .finally(() => setSolving(false));
+  };
+
+  const onBrushChange = (value) => {
+    setBrush(value);
+    p5Ref.current?.setStrokeWeight(value);
+  };
+
+  const onUndo = () => p5Ref.current?.undo();
 
   const onClear = () => {
     p5Ref.current?.clearCanvas();
     setError("");
-    setOutput(EMPTY_RESULT);
+    setResult(EMPTY);
+    setRecognized("");
   };
 
+  const hasResult = result.characters.length > 0;
+
   return (
-    <div className="container ">
-      <br />
-      <div className="row">
-        <div className="col-sm-12 col-md-6 offset-md-2">
-          Draw the equation below
-        </div>
-      </div>
-      <br />
-      <div className="row align-items-center">
-        <div className="col-12 col-md-6 border border-dark offset-md-2">
+    <div className="app-shell">
+      <header className="app-header">
+        <h1 className="app-title">EQsolver</h1>
+        <p className="app-subtitle">
+          Draw an equation and let the model read and solve it.
+        </p>
+      </header>
+
+      <section className="board">
+        <div className="canvas-frame">
           <P5Canvas instanceRef={p5Ref} />
         </div>
-        <div className="col-6 col-md-2">
-          <div className="row">
-            <div className="col">
-              <button
-                type="button"
-                onClick={onEvaluate}
-                disabled={loading}
-                className="btn btn-primary w-100"
-              >
-                {loading ? (
-                  <>
-                    <Spinner as="span" animation="border" size="sm" />{" "}
-                    Evaluating...
-                  </>
-                ) : (
-                  "Evaluate"
-                )}
-              </button>
-            </div>
-          </div>
-          <br />
-          <div className="row">
-            <div className="col">
-              <button
-                type="button"
-                onClick={onClear}
-                disabled={loading}
-                className="btn btn-danger w-100"
-              >
-                Clear
-              </button>
-            </div>
+
+        <div className="toolbar">
+          <label className="brush">
+            <span>Brush</span>
+            <input
+              type="range"
+              min="2"
+              max="10"
+              value={brush}
+              onChange={(e) => onBrushChange(Number(e.target.value))}
+            />
+          </label>
+          <div className="toolbar__actions">
+            <button type="button" className="btn btn-outline-secondary" onClick={onUndo}>
+              Undo
+            </button>
+            <button type="button" className="btn btn-outline-danger" onClick={onClear}>
+              Clear
+            </button>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={onEvaluate}
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Spinner as="span" animation="border" size="sm" /> Reading...
+                </>
+              ) : (
+                "Evaluate"
+              )}
+            </button>
           </div>
         </div>
-      </div>
-      <br />
-      <div className="row">
-        <div className="col-12 col-md-6 offset-md-2">
-          {error && <Alert variant="danger">{error}</Alert>}
-        </div>
-      </div>
-      <br />
-      <div className="row">
-        <div className="offset-md-3">
+
+        <p className="hint">
+          Supported: digits <code>0-9</code>, variable <code>x</code>, and{" "}
+          <code>+ - = /</code>. Write one symbol at a time, sitting on the guide line.
+        </p>
+
+        <div className="upload-row">
           <UploadButton sendImgToServer={sendImgToServer} disabled={loading} />
         </div>
-      </div>
-      <br />
-      <br />
-      <Output
-        equation={output.equation}
-        formatted_equation={output.formatted_equation}
-        result={output.result}
-      />
+      </section>
+
+      {error && (
+        <Alert variant="danger" className="board-alert">
+          {error}
+        </Alert>
+      )}
+
+      {hasResult && (
+        <section className="results">
+          <SegmentationStrip characters={result.characters} />
+          <ResultPanel
+            recognized={recognized}
+            onRecognizedChange={setRecognized}
+            onSolve={onSolveEdited}
+            solving={solving}
+            formatted={result.formatted}
+            solution={result.solution}
+            solved={result.solved}
+          />
+        </section>
+      )}
     </div>
   );
 }

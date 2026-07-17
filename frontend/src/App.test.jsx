@@ -12,10 +12,11 @@ vi.mock("p5", () => ({
 import App from "./App";
 
 describe("App", () => {
-  it("renders the drawing prompt and controls", () => {
+  it("renders the heading and canvas controls", () => {
     render(<App />);
-    expect(screen.getByText(/draw the equation below/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /eqsolver/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /evaluate/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /undo/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /clear/i })).toBeInTheDocument();
   });
 });

@@ -1,7 +1,9 @@
 import warnings
 warnings.filterwarnings("ignore")
 
+import base64
 import csv
+import io
 import os
 
 import cv2
@@ -33,6 +35,13 @@ def _to_model_input(crop):
     return np.where(normalized > 0.5, 1.0, 0.0)
 
 
+def _encode_crop(crop):
+    """Encode a character crop as a small base64 PNG data URL for previewing."""
+    buf = io.BytesIO()
+    Image.fromarray(crop.astype('uint8')).save(buf, 'PNG')
+    return 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
+
+
 def _flatten_transparency(img):
     """Composite transparent images onto white; a transparent canvas export
     turns solid black in grayscale otherwise."""
@@ -44,20 +53,28 @@ def _flatten_transparency(img):
 
 
 def recognize(image_source):
-    """Recognize the equation in an image (path or file-like object).
+    """Recognize the characters in an image (path or file-like object).
 
-    Returns the predicted character string, or "" if nothing was detected.
-    Everything runs in memory; nothing is written to disk.
+    Returns a list of per-character dicts: {raw, confidence, image}, ordered
+    left to right. Everything runs in memory; nothing is written to disk.
     """
     img = _flatten_transparency(Image.open(image_source))
     gray = np.array(img.convert('L'))
 
     crops = segment_characters(gray)
     if not crops:
-        return ""
+        return []
 
     batch = np.stack([_to_model_input(c) for c in crops]).reshape(-1, 28, 28, 1)
-    results = np.argmax(model.predict(batch, verbose=0), axis=1)
-    equation = "".join(CODE2CHAR[r] for r in results)
-    print('equation :', equation)
-    return equation
+    probs = model.predict(batch, verbose=0)
+    classes = np.argmax(probs, axis=1)
+    confidences = probs[np.arange(len(probs)), classes]
+
+    characters = []
+    for crop, cls, conf in zip(crops, classes, confidences):
+        characters.append({
+            'raw': CODE2CHAR[int(cls)],
+            'confidence': round(float(conf), 4),
+            'image': _encode_crop(crop),
+        })
+    return characters
