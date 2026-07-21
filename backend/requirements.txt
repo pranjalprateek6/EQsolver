@@ -1,8 +1,7 @@
 flask
 flask-cors
-tensorflow
-tf-keras
-opencv-python
+onnxruntime
+opencv-python-headless
 pillow
 numpy
 sympy

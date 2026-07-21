@@ -28,4 +28,5 @@ COPY backend/ .
 # the compiled frontend is served by Flask from ./static
 COPY --from=frontend /fe/dist ./static
 EXPOSE 5000
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "1", "--timeout", "120", "app:app"]
+# bind to $PORT when the host provides one (Render, Cloud Run), else 5000
+CMD gunicorn --bind "0.0.0.0:${PORT:-5000}" --workers 1 --timeout 120 app:app

@@ -1,14 +1,3 @@
----
-title: EQsolver
-emoji: ➗
-colorFrom: indigo
-colorTo: gray
-sdk: docker
-app_port: 5000
-pinned: false
-short_description: Draw a handwritten equation and solve it instantly
----
-
 # EQsolver
 
 Handwritten equation solver. Draw an equation on a canvas or upload an image, and the app recognizes the characters with a CNN and solves the equation.
@@ -32,8 +21,8 @@ The recognized equation is editable, so a misread is a quick fix rather than a w
 
 A small convolutional classifier that reads one handwritten symbol at a time.
 
-- File: `backend/model.h5`, about 5 MB, roughly 432k parameters, loaded once at startup.
-- Framework: TensorFlow 2.21 via the Keras 2 compat package (`tf_keras`), running on CPU.
+- Served as `backend/model.onnx` (about 1.7 MB, roughly 432k parameters) and run with `onnxruntime`, loaded once at startup. This keeps the app runtime lightweight (no TensorFlow), so it fits small free hosting tiers.
+- Trained with TensorFlow/Keras, which produces `backend/model.h5`; `training/convert_to_onnx.py` converts that to the served ONNX file and verifies the predictions match.
 - Input: a 28x28 grayscale glyph. Output: 21 classes.
 - Classes: digits `0-9`, `+ - × ÷ =`, `( )`, `√`, and variables `x y z`.
 
@@ -64,16 +53,24 @@ docker compose up --build
 Frontend at http://localhost:3000, API at http://localhost:5000.
 
 Production (single image: Flask serves the built frontend and the API on one
-port, which is all a host like Render, Railway or Fly needs):
+port, which is all a container host needs):
 
 ```
 docker build -t eqsolver .
 docker run -p 5000:5000 eqsolver     # open http://localhost:5000
 ```
 
+### Deploy to Render (free)
+
+The repo has a `render.yaml` blueprint. On https://dashboard.render.com choose
+New + Blueprint, connect this repo, and Render builds the root Dockerfile and
+serves the app on its free tier. The image ships an ONNX model and no
+TensorFlow, so it stays within the free tier's memory.
+
 ### Manual
 
-Backend (requires Python 3.12, TensorFlow does not support newer versions yet):
+Backend (the app runtime needs only onnxruntime, so any recent Python 3 works;
+retraining the model needs Python 3.12 and the `training/requirements.txt` deps):
 
 ```
 cd backend

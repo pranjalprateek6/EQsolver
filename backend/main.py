@@ -7,19 +7,22 @@ import io
 import os
 
 import numpy as np
+import onnxruntime as ort
 from PIL import Image
-# model.h5 is a legacy Keras 2 save; tf_keras is the Keras 2 compat package
-from tf_keras.models import load_model
 
 from preprocess import TARGET, to_model_input
 from segmentor import segment_characters
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(ROOT, 'model.h5')
+# the model is served as ONNX so the runtime needs only onnxruntime, not the
+# full TensorFlow stack (see training/convert_to_onnx.py); training still uses
+# Keras and produces model.h5, which is converted to this model.onnx
+MODEL_PATH = os.path.join(ROOT, 'model.onnx')
 MAPPER_PATH = os.path.join(ROOT, 'mapper.csv')
 
-# load the trained model and the id -> character mapping once at import time
-model = load_model(MODEL_PATH)
+# load the model and the id -> character mapping once at import time
+_session = ort.InferenceSession(MODEL_PATH, providers=['CPUExecutionProvider'])
+_input_name = _session.get_inputs()[0].name
 with open(MAPPER_PATH, newline='', encoding='utf-8') as f:
     CODE2CHAR = {int(row['id']): row['char'] for row in csv.DictReader(f)}
 
@@ -57,7 +60,7 @@ def recognize(image_source):
         return []
 
     batch = np.stack([to_model_input(p['crop']) for p in pieces]).reshape(-1, TARGET, TARGET, 1)
-    probs = model.predict(batch, verbose=0)
+    probs = _session.run(None, {_input_name: batch.astype(np.float32)})[0]
     classes = np.argmax(probs, axis=1)
     confidences = probs[np.arange(len(probs)), classes]
 

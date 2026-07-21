@@ -1,2 +1,6 @@
-# extra dependencies for training only (the app itself does not need these)
+# training and model-conversion only; the app runtime does not need these
+tensorflow
+tf-keras
+tf2onnx
+onnxruntime
 kaggle

@@ -1,0 +1,10 @@
+# Render blueprint: one free web service built from the root Dockerfile.
+# Deploy by connecting this repo at https://dashboard.render.com (New +
+# Blueprint), or configure a Docker web service manually with the same values.
+services:
+  - type: web
+    name: eqsolver
+    runtime: docker
+    plan: free
+    healthCheckPath: /
+    autoDeploy: true

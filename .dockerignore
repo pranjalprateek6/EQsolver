@@ -4,5 +4,7 @@
 **/.pytest_cache
 frontend/dist
 backend/static
-backend/training/data
+backend/tests
+backend/training
+backend/model.h5
 .git
