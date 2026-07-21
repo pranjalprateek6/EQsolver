@@ -6,6 +6,7 @@ colorTo: gray
 sdk: docker
 app_port: 5000
 pinned: false
+short_description: Draw a handwritten equation and solve it instantly
 ---
 
 # EQsolver
