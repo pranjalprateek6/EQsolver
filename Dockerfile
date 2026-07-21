@@ -11,6 +11,13 @@ RUN npm run build
 
 FROM python:3.12-slim
 WORKDIR /app
+# writable cache locations (some hosts run the container as a non-root user
+# with a read-only home) and quieter TensorFlow logs
+ENV KERAS_HOME=/tmp/keras \
+    XDG_CACHE_HOME=/tmp/cache \
+    MPLCONFIGDIR=/tmp/mpl \
+    TF_CPP_MIN_LOG_LEVEL=2 \
+    PYTHONUNBUFFERED=1
 # opencv runtime libraries
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \

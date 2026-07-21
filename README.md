@@ -1,3 +1,13 @@
+---
+title: EQsolver
+emoji: ➗
+colorFrom: indigo
+colorTo: gray
+sdk: docker
+app_port: 5000
+pinned: false
+---
+
 # EQsolver
 
 Handwritten equation solver. Draw an equation on a canvas or upload an image, and the app recognizes the characters with a CNN and solves the equation.
