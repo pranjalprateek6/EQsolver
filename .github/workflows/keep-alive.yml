@@ -1,0 +1,23 @@
+name: Keep alive
+
+# A once-a-day ping so the free Render service is exercised and confirmed
+# healthy. It wakes the instance (~50s cold start) and it sleeps again ~15 min
+# later, so this is a daily health touch, not a stay-awake-all-day pinger, and
+# it uses only a few instance-hours a month.
+on:
+  schedule:
+    # GitHub cron is UTC. 02:30 UTC = 08:00 IST. Change this to your time zone.
+    - cron: '30 2 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping the app (retry through the cold start)
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+            --max-time 150 --retry 5 --retry-delay 20 --retry-all-errors \
+            https://eqsolver-btzj.onrender.com/)
+          echo "final status: $code"
+          test "$code" = "200"
