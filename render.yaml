@@ -6,5 +6,11 @@ services:
     name: eqsolver
     runtime: docker
     plan: free
-    healthCheckPath: /
+    # runs one model inference and one sandboxed solve
+    healthCheckPath: /healthz
     autoDeploy: true
+    envVars:
+      # Render's proxy adds one X-Forwarded-For hop; trust exactly that one so
+      # rate limits apply per client rather than to the proxy
+      - key: PROXY_COUNT
+        value: "1"

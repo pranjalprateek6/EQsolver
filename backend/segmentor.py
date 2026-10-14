@@ -138,7 +138,7 @@ def segment_characters(gray_img):
 	"""
 	orig_height, orig_width = gray_img.shape
 	width = TARGET_WIDTH
-	height = int(width * orig_height / orig_width)
+	height = max(1, int(width * orig_height / orig_width))
 	src_img = cv2.resize(gray_img, dsize=(width, height), interpolation=cv2.INTER_AREA)
 
 	kernel_size = 21

@@ -41,3 +41,40 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build
+
+  # Build the production image and exercise it the way the host will: this is
+  # the only place the Linux-specific parts (forkserver solver pool, memory
+  # cap, gunicorn gthread) run before deploy.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t eqsolver .
+      - name: Start container
+        run: docker run -d --name eqsolver -p 5000:5000 eqsolver
+      - name: Smoke test
+        run: |
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:5000/healthz && break
+            sleep 2
+          done
+          curl -sf http://localhost:5000/healthz | grep -q '"ok"'
+          curl -sf http://localhost:5000/ | grep -qi '<div id="root">'
+          curl -sf -X POST http://localhost:5000/solve \
+            -H 'Content-Type: application/json' \
+            -d '{"expression":"x**2-5*x+6=0"}' | grep -q '\[2, 3\]'
+          # hostile input is refused, not executed
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:5000/solve \
+            -H 'Content-Type: application/json' \
+            -d "{\"expression\":\"__import__('os').system('id')\"}")
+          test "$code" = "422"
+          # a runaway solve is cut off by the sandbox timeout, and the service survives
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 20 -X POST http://localhost:5000/solve \
+            -H 'Content-Type: application/json' \
+            -d '{"expression":"x**(10**4)+x+1=0"}')
+          test "$code" = "422"
+          curl -sf http://localhost:5000/healthz | grep -q '"ok"'
+      - name: Container logs
+        if: always()
+        run: docker logs eqsolver

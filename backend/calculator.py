@@ -1,47 +1,44 @@
-from sympy import latex, solve
-from sympy.parsing.sympy_parser import (
-    parse_expr,
-    standard_transformations,
-    convert_xor,
-)
+from sympy import solve
 
-# parse '^' as exponentiation instead of XOR (harmless; the parser emits '**')
-TRANSFORMATIONS = standard_transformations + (convert_xor,)
-
-
-def _parse(expression):
-    return parse_expr(expression, transformations=TRANSFORMATIONS)
+import safe_parse
+from safe_parse import ParseError, parse
 
 
 def evaluate_expression(expression):
-    """Evaluate an arithmetic expression via sympy (no Python eval)."""
+    """Evaluate an arithmetic expression (parsed safely, never eval'd)."""
     try:
-        result = _parse(expression)
+        result, rhs = parse(expression)
+        if rhs is not None:
+            return None
         return int(result) if result.is_Integer else float(result)
-    except Exception:
+    except (ParseError, TypeError, ValueError, ZeroDivisionError):
         return None
 
 
 def solve_equation(equation):
     """Solve an equation 'lhs = rhs' with sympy, returning a list of roots."""
     try:
-        lhs, rhs = equation.split("=", 1)
-        return solve(_parse(lhs) - _parse(rhs))
-    except Exception:
+        lhs, rhs = parse(equation)
+        if rhs is None:
+            return None
+        return solve(lhs - rhs)
+    except (ParseError, TypeError, ValueError, NotImplementedError):
         return None
 
 
 def to_latex(expression):
     """Render an explicit expression as LaTeX for display, or '' if it will
-    not parse. Equations are rendered as 'lhs = rhs'."""
-    expression = str(expression).strip()
+    not parse. It is kept as written, so '8+3' shows as 8 + 3 rather than its
+    value. Equations are rendered as 'lhs = rhs'."""
     try:
-        if '=' in expression:
-            lhs, rhs = expression.split('=', 1)
-            return latex(_parse(lhs)) + ' = ' + latex(_parse(rhs))
-        return latex(_parse(expression))
-    except Exception:
+        return safe_parse.to_latex(normalize(expression))
+    except ParseError:
         return ''
+
+
+def normalize(expression):
+    # accept the human operators too, so typed '×'/'÷' solve like '*'/'/'
+    return str(expression).strip().replace('×', '*').replace('÷', '/')
 
 
 def solve_expression(expression):
@@ -49,14 +46,22 @@ def solve_expression(expression):
     (or edited by the user). Handles both plain arithmetic and equations.
 
     Returns (expression, solution); solution is a number, a list of roots, or
-    None if it could not be parsed. Unlike the old Level 1 path this does no
-    symbol substitution or implicit-operator insertion: the input is already
-    explicit (** for powers, sqrt(), *, /).
+    None if it could not be parsed.
     """
-    # accept the human operators too, so typed '×'/'÷' solve like '*'/'/'
-    expression = str(expression).strip().replace('×', '*').replace('÷', '/')
+    expression = normalize(expression)
     if not expression:
         return expression, None
     if '=' in expression:
         return expression, solve_equation(expression)
     return expression, evaluate_expression(expression)
+
+
+def solve_job(expression):
+    """Everything one request needs, as plain picklable data. This is what the
+    sandboxed solver process runs (see sandbox.py)."""
+    expression, solution = solve_expression(expression)
+    return {
+        'expression': expression,
+        'solution': None if solution is None else str(solution),
+        'latex': to_latex(expression),
+    }
