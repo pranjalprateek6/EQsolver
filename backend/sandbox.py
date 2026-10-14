@@ -146,7 +146,8 @@ class SolverPool:
 
         if 'error' in result:
             log.warning('solver failed on %r: %s', expression, result['error'])
-            return {'expression': expression, 'solution': None, 'latex': ''}
+            return {'expression': expression, 'solution': None,
+                    'solution_latex': '', 'latex': ''}
         return result
 
 

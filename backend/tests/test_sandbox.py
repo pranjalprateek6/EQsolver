@@ -14,7 +14,8 @@ def pool():
 
 def test_solves_in_a_helper(pool):
     result = pool.run('x**2=4')
-    assert result == {'expression': 'x**2=4', 'solution': '[-2, 2]', 'latex': 'x^{2} = 4'}
+    assert result == {'expression': 'x**2=4', 'solution': '[-2, 2]',
+                      'solution_latex': 'x = -2, 2', 'latex': 'x^{2} = 4'}
 
 
 def test_unsolvable_has_no_solution(pool):

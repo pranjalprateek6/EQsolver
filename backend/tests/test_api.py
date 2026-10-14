@@ -100,6 +100,36 @@ def png_bytes(width, height, color='white'):
     return buf.getvalue()
 
 
+def test_solve_returns_solution_latex(client):
+    body = client.post('/solve', json={'expression': 'y**2=9'}).get_json()
+    assert body['solution_latex'] == 'y = -3, 3'
+
+
+def test_predict_returns_solution_latex(client):
+    image = (FIXTURES / 'eight_plus_three.png').read_bytes()
+    body = client.post('/predict', json={'image': encode_image(image)}).get_json()
+    assert 'solution_latex' in body
+
+
+def test_assets_are_cached_forever_and_index_is_revalidated(client, tmp_path, monkeypatch):
+    import app as app_module
+    (tmp_path / 'assets').mkdir()
+    (tmp_path / 'assets' / 'index-abc123.js').write_text('console.log(1)')
+    (tmp_path / 'index.html').write_text('<div id="root"></div>')
+    monkeypatch.setattr(app_module, 'STATIC_DIR', str(tmp_path))
+    monkeypatch.setattr(app, 'static_folder', str(tmp_path))
+    asset = client.get('/assets/index-abc123.js')
+    assert asset.status_code == 200
+    assert 'immutable' in asset.headers['Cache-Control']
+    assert client.get('/').headers['Cache-Control'] == 'no-cache'
+
+
+def test_json_is_compressed_when_asked(client):
+    response = client.post('/solve', json={'expression': '1+' * 140 + '1'},
+                           headers={'Accept-Encoding': 'gzip'})
+    assert response.headers.get('Content-Encoding') == 'gzip'
+
+
 def test_solve_latex_is_as_written(client):
     body = client.post('/solve', json={'expression': '8+3'}).get_json()
     assert body['latex'] == '8 + 3'

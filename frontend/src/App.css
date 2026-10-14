@@ -62,7 +62,9 @@ label {
 /* two-column workspace: input on the left, results on the right */
 .workspace {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* minmax(0, ...) lets a column shrink below its content's natural width,
+     so a long toolbar wraps instead of pushing the page sideways */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 28px;
   align-items: start;
 }
@@ -76,11 +78,29 @@ label {
 }
 
 .canvas-frame {
+  position: relative;
   border: 2px dashed #b9bec9;
   border-radius: var(--radius);
   overflow: hidden;
   line-height: 0;
   background: #fff;
+}
+
+.canvas-frame--drop {
+  border-color: var(--primary);
+}
+
+.canvas-frame__drop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(238, 242, 255, 0.92);
+  color: var(--primary);
+  font-weight: 700;
+  line-height: 1.4;
+  pointer-events: none;
 }
 
 .canvas-frame canvas {
@@ -115,6 +135,7 @@ label {
 
 .toolbar__actions {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
 }
 
@@ -390,15 +411,47 @@ label {
   font-variant-numeric: tabular-nums;
 }
 
+.result__value--math {
+  overflow-x: auto;
+}
+
+.result__value--math .katex-display {
+  margin: 0;
+  text-align: left;
+}
+
+.result__value--math .katex-display > .katex {
+  text-align: left;
+}
+
+.result__hint code {
+  font-size: 0.85em;
+}
+
+.results__notice {
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  background: var(--accent);
+  border: 2px solid var(--line);
+  font-size: 0.88rem;
+}
+
 .result__value--muted {
   font-size: 1.05rem;
   font-weight: 500;
   color: var(--muted);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .btn,
+  .examples__chip {
+    transition: none;
+  }
+}
+
 @media (max-width: 900px) {
   .workspace {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .results {
     min-height: 0;
@@ -406,11 +459,27 @@ label {
 }
 
 @media (max-width: 520px) {
+  .App {
+    padding: 20px 16px 48px;
+  }
+  .panel {
+    padding: 16px;
+  }
   .toolbar {
     flex-direction: column;
     align-items: stretch;
   }
   .toolbar__actions {
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .toolbar__actions .btn {
+    padding-left: 4px;
+    padding-right: 4px;
+  }
+  /* Evaluate is the main action: give it the full row */
+  .toolbar__actions .btn-primary {
+    grid-column: 1 / -1;
   }
 }

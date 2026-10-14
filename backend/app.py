@@ -5,6 +5,7 @@ import os
 from io import BytesIO
 
 from flask import Flask, jsonify, request, send_from_directory
+from flask_compress import Compress
 from flask_cors import CORS
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -43,11 +44,26 @@ CORS_ORIGINS = [o.strip() for o in os.environ.get(
     'CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',') if o.strip()]
 CORS(app, origins=CORS_ORIGINS)
 
+# gzip/brotli for the JS/CSS bundle and JSON responses
+Compress(app)
+
 limiter = Limiter(
     get_remote_address,
     app=app,
     storage_uri=os.environ.get('RATELIMIT_STORAGE_URI', 'memory://'),
 )
+
+
+@app.after_request
+def cache_headers(response):
+    # Vite puts a content hash in every asset filename, so assets can be cached
+    # forever; index.html must always be revalidated to pick up a new build.
+    if request.path.startswith('/assets/') and response.status_code == 200:
+        response.headers['Cache-Control'] = 'public, max-age=31536000, immutable'
+    elif request.path in ('/', '/index.html'):
+        response.headers['Cache-Control'] = 'no-cache'
+    response.headers.setdefault('X-Content-Type-Options', 'nosniff')
+    return response
 
 
 def _rate_limit():
@@ -153,6 +169,7 @@ def predict():
         formatted_equation=result['expression'] if result else expression,
         latex=result['latex'] if result else '',
         solution='' if solution is None else solution,
+        solution_latex=result.get('solution_latex', '') if result else '',
         solved=solution is not None,
     )
     if message:
@@ -184,6 +201,7 @@ def solve():
         formatted_equation=result['expression'],
         latex=result['latex'],
         solution=result['solution'],
+        solution_latex=result.get('solution_latex', ''),
         solved=True,
     )
 
