@@ -11,22 +11,30 @@ RUN npm run build
 
 FROM python:3.12-slim
 WORKDIR /app
-# writable cache locations (some hosts run the container as a non-root user
-# with a read-only home) and quieter TensorFlow logs
-ENV KERAS_HOME=/tmp/keras \
-    XDG_CACHE_HOME=/tmp/cache \
-    MPLCONFIGDIR=/tmp/mpl \
-    TF_CPP_MIN_LOG_LEVEL=2 \
+# writable cache location (some hosts run the container as a non-root user
+# with a read-only home)
+ENV XDG_CACHE_HOME=/tmp/cache \
     PYTHONUNBUFFERED=1
 # opencv runtime libraries
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
+# requirements.txt is a pinned lockfile (see requirements.in)
 COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt gunicorn
+RUN pip install --no-cache-dir -r requirements.txt
 COPY backend/ .
 # the compiled frontend is served by Flask from ./static
 COPY --from=frontend /fe/dist ./static
+# run as an unprivileged user
+RUN useradd --create-home --uid 10001 app
+USER app
 EXPOSE 5000
-# bind to $PORT when the host provides one (Render, Cloud Run), else 5000
-CMD gunicorn --bind "0.0.0.0:${PORT:-5000}" --workers 1 --timeout 120 app:app
+# Bind to $PORT when the host provides one (Render, Cloud Run), else 5000.
+# Threads keep other requests moving while one waits on a solve; SymPy runs
+# in separate killable processes (sandbox.py), so no request outlives
+# SOLVE_TIMEOUT there. Raise WEB_CONCURRENCY for more worker processes on
+# hosts with more memory than the free tier's 512 MB.
+CMD gunicorn --bind "0.0.0.0:${PORT:-5000}" \
+    --workers "${WEB_CONCURRENCY:-1}" --threads "${GUNICORN_THREADS:-4}" \
+    --worker-class gthread --timeout 30 --graceful-timeout 10 \
+    --access-logfile - app:app

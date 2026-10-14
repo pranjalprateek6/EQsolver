@@ -96,7 +96,9 @@ cd backend && pytest
 cd frontend && npm test
 ```
 
-Both suites also run in CI on every push.
+Both suites also run in CI on every push, along with a job that builds the
+production Docker image and smoke-tests it (health check, a solve, a hostile
+input, and a runaway solve that must be cut off).
 
 ## Usage
 
@@ -119,4 +121,47 @@ Draw an equation and click Evaluate, or pick one of the example chips. The segme
 
 `POST /solve` with `{"expression": "x**2=4"}` re-solves an edited expression without the model.
 
-Errors come back as `{"error": "..."}` with a 400 or 422 status.
+Expressions use `+ - * / ** ^ =`, parentheses, `sqrt(...)`, `pi`, decimals and
+single-letter variables; juxtaposition multiplies (`2x`, `3(x+1)`). Anything
+else is refused.
+
+`GET /healthz` runs one model inference and one sandboxed solve, and returns
+`{"status": "ok"}` or a 503.
+
+Errors come back as `{"error": "..."}` with a 400 (bad request), 413 (upload
+too large), 422 (unreadable or unsolvable) or 429 (rate limited) status.
+
+## Security and limits
+
+- Expressions are parsed by an allowlisted grammar (`backend/safe_parse.py`)
+  that builds SymPy objects directly. Nothing user-supplied reaches `eval`, and
+  power towers like `9**9**9**9` are refused before they are computed.
+- Every solve runs in a pool of separate processes (`backend/sandbox.py`) with
+  a time limit, and on Linux a memory cap. A solve that overruns is killed, so
+  one hard equation cannot stall the server.
+- Uploads are limited by request size, pixel count, shape and format (PNG,
+  JPEG, WebP), checked from the image header before decoding.
+- Requests to `/predict` and `/solve` are rate limited per client.
+
+## Configuration
+
+All settings are environment variables with production-safe defaults.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PORT` | `5000` | Port to bind |
+| `WEB_CONCURRENCY` | `1` | gunicorn worker processes |
+| `GUNICORN_THREADS` | `4` | Threads per worker |
+| `SOLVE_TIMEOUT` | `3` | Seconds a solve may run before it is killed |
+| `SOLVER_PROCESSES` | `2` | Solver processes per worker |
+| `SOLVER_MEMORY_MB` | `256` | Extra memory a solver process may use (Linux) |
+| `MAX_REQUEST_BYTES` | `10485760` | Largest request body |
+| `MAX_IMAGE_PIXELS` | `25000000` | Largest image, in pixels |
+| `RATE_LIMIT` | `30 per minute` | Per-client limit on `/predict` and `/solve` |
+| `RATELIMIT_STORAGE_URI` | `memory://` | Shared limiter storage, for example `redis://...` |
+| `PROXY_COUNT` | `0` | Reverse proxies in front of the app (Render: `1`) |
+| `CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed cross-origin callers |
+| `FLASK_DEBUG` | unset | `1` enables the debugger for `python app.py` |
+
+Dependencies are pinned in `backend/requirements.txt`, generated from
+`backend/requirements.in` with `uv pip compile` (the command is in the file).

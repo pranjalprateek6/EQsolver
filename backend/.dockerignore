@@ -2,3 +2,9 @@
 __pycache__
 .pytest_cache
 tests
+training
+static
+model.h5
+model_v2.h5
+mapper_v2.csv
+requirements-dev.txt
