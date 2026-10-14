@@ -21,10 +21,16 @@ def test_unsolvable_has_no_solution(pool):
     assert pool.run('++')['solution'] is None
 
 
-def test_overrun_is_killed_and_pool_recovers(pool):
+def test_overrun_is_stopped_and_pool_recovers(pool):
+    # whichever limit trips first stops it: the time limit everywhere, or on
+    # Linux the memory cap (the job then reports no solution)
     start = time.perf_counter()
-    with pytest.raises(sandbox.SolveTimeout):
-        pool.run('x**(10**4)+x+1=0', timeout=1)
+    try:
+        result = pool.run('x**(10**4)+x+1=0', timeout=1)
+    except sandbox.SolveTimeout:
+        pass
+    else:
+        assert result['solution'] is None
     assert time.perf_counter() - start < 5
     # the killed helper was replaced; the next job runs normally
     assert pool.run('2+2')['solution'] == '4'

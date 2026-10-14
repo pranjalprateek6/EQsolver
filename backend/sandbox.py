@@ -132,7 +132,9 @@ class SolverPool:
             if not helper.conn.poll(timeout):
                 raise SolveTimeout()
             result = helper.conn.recv()
-            healthy = True
+            # after hitting its memory cap a helper may be left fragmented
+            # or half-initialized; replace it rather than reuse it
+            healthy = result.get('error') != 'memory'
         except (EOFError, OSError) as exc:
             raise SolverError('solver process died') from exc
         finally:
