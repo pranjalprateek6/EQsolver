@@ -1,7 +1,8 @@
-from sympy import N, latex, solve
+from sympy import N, PolynomialError, latex, solve
 
 import safe_parse
 from safe_parse import ParseError, parse
+from steps import equation_steps
 
 # significant digits shown for an approximate (irrational) value
 APPROX_DIGITS = 6
@@ -119,7 +120,7 @@ def solve_job(expression):
     sandboxed solver process runs (see sandbox.py). Parses and solves once."""
     expression = normalize(expression)
     result = {'expression': expression, 'solution': None, 'solution_latex': '',
-              'latex': to_latex(expression)}
+              'latex': to_latex(expression), 'steps': []}
     try:
         lhs, rhs = parse(expression)
         if rhs is None:
@@ -131,6 +132,15 @@ def solve_job(expression):
             roots = _solve_parsed(lhs, rhs)
             result['solution'] = str(roots)
             result['solution_latex'] = _roots_latex(roots, lhs, rhs)
+            result['steps'] = _steps(lhs, rhs, result['latex'])
     except (ParseError, TypeError, ValueError, NotImplementedError, OverflowError):
         pass
     return result
+
+
+def _steps(lhs, rhs, written_latex):
+    # the working is a bonus: if it cannot be produced, the answer still stands
+    try:
+        return equation_steps(lhs, rhs, written_latex)
+    except (TypeError, ValueError, NotImplementedError, PolynomialError):
+        return []

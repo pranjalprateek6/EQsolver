@@ -174,6 +174,7 @@ def _read_and_solve(tokens):
         latex=result['latex'] if result else '',
         solution='' if solution is None else solution,
         solution_latex=result.get('solution_latex', '') if result else '',
+        steps=result.get('steps', []) if result else [],
         solved=solution is not None,
     )
     if message:
@@ -236,6 +237,7 @@ def solve():
         latex=result['latex'],
         solution=result['solution'],
         solution_latex=result.get('solution_latex', ''),
+        steps=result.get('steps', []),
         solved=True,
     )
 
