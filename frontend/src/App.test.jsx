@@ -1,13 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-
-// p5 needs a real canvas; mock it out in jsdom
-vi.mock("p5", () => ({
-  default: class MockP5 {
-    constructor() {}
-    remove() {}
-  },
-}));
 
 import App from "./App";
 

@@ -103,12 +103,22 @@ label {
   pointer-events: none;
 }
 
-.canvas-frame canvas {
+.drawing {
   width: 100%;
-  height: auto;
+  line-height: 0;
+  /* the baseline guide is page decoration, never part of the exported ink */
+  background:
+    linear-gradient(#e0e0e0, #e0e0e0) 0 var(--baseline) / 100% 1px no-repeat,
+    #fff;
+}
+
+.drawing__canvas {
+  width: 100%;
+  display: block;
   touch-action: none;
   cursor: crosshair;
-  display: block;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .toolbar {

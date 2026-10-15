@@ -118,3 +118,15 @@ class TestNarrowFractions:
 
     def test_minus_between_numbers_is_still_minus(self):
         assert build_expression([base('7', 0), tok('-', 40, 118, 26, 5), base('6', 80)]) == '7-6'
+
+
+class TestOperatorsAreNotBases:
+    def test_digit_after_short_minus_is_not_an_exponent(self):
+        # a drawn minus is a few pixels tall, so the next digit's centre is
+        # always "above" the minus's centre; that must not make it a power
+        tokens = [base('7', 0), tok('-', 40, 133, 26, 4), tok('2', 80, 95, 28, 50)]
+        assert build_expression(tokens) == '7-2'
+
+    def test_digit_after_plus_is_not_an_exponent(self):
+        tokens = [base('7', 0), tok('+', 40, 118, 20, 20), tok('2', 80, 90, 28, 50)]
+        assert build_expression(tokens) == '7+2'
