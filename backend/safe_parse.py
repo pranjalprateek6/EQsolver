@@ -25,7 +25,7 @@ import re
 import sympy
 
 MAX_LENGTH = 300
-MAX_TOKENS = 150
+MAX_TOKENS = 300
 MAX_DEPTH = 30
 MAX_NUMBER_DIGITS = 30
 # a numeric power is refused if its result would need more bits than this

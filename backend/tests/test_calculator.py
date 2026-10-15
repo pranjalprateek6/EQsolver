@@ -54,3 +54,43 @@ class TestSolveExpression:
 
     def test_unsolvable_returns_none(self):
         assert solve_expression('x**2=')[1] is None
+
+
+class TestSolveJob:
+    """solve_job is what the sandbox runs: the solution as text and as LaTeX."""
+
+    def job(self, expression):
+        from calculator import solve_job
+        return solve_job(expression)
+
+    def test_roots_use_the_real_variable(self):
+        assert self.job('y**2=9')['solution_latex'] == 'y = -3, 3'
+
+    def test_single_root(self):
+        assert self.job('2x+1=5')['solution_latex'] == 'x = 2'
+
+    def test_exact_fraction_with_decimal(self):
+        assert self.job('7/2')['solution_latex'] == r'\frac{7}{2} = 3.5'
+
+    def test_irrational_is_approximated(self):
+        assert self.job('sqrt(2)')['solution_latex'] == r'\sqrt{2} \approx 1.41421'
+
+    def test_integer_is_plain(self):
+        job = self.job('8+3')
+        assert job['solution'] == '11' and job['solution_latex'] == '11'
+
+    def test_identity(self):
+        job = self.job('x+1=1+x')
+        assert job['solution'] == 'all values'
+
+    def test_contradiction(self):
+        job = self.job('2=3')
+        assert job['solution'] == '[]'
+        assert 'no solution' in job['solution_latex']
+
+    def test_complex_roots(self):
+        assert self.job('x**2=-1')['solution_latex'] == 'x = - i, i'
+
+    def test_unsolved_has_no_latex(self):
+        job = self.job('x+1')
+        assert job['solution'] is None and job['solution_latex'] == ''

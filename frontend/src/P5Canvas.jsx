@@ -2,8 +2,14 @@ import { useEffect, useRef } from "react";
 import p5 from "p5";
 import makeSketch from "./sketches/sketch";
 
-// aspect ratio of the drawing surface (height / width)
+// aspect ratio of the drawing surface (height / width); narrow screens get a
+// taller surface so there is room to write with a finger
 const ASPECT = 0.46;
+const NARROW_ASPECT = 0.7;
+const NARROW_WIDTH = 600;
+
+const heightFor = (width) =>
+  Math.round(width * (width < NARROW_WIDTH ? NARROW_ASPECT : ASPECT));
 
 // Mounts a p5 instance sized to its container so the internal resolution
 // matches the displayed size 1:1, and keeps them in sync on resize.
@@ -13,7 +19,7 @@ function P5Canvas({ instanceRef }) {
   useEffect(() => {
     const container = containerRef.current;
     const width = container.clientWidth || 550;
-    const height = Math.round(width * ASPECT);
+    const height = heightFor(width);
     const instance = new p5(makeSketch(width, height), container);
     if (instanceRef) instanceRef.current = instance;
 
@@ -23,7 +29,7 @@ function P5Canvas({ instanceRef }) {
     const syncSize = () => {
       const w = container.clientWidth;
       if (w > 0 && Math.abs(w - instance.width) > 1 && instance.resizeTo) {
-        instance.resizeTo(w, Math.round(w * ASPECT));
+        instance.resizeTo(w, heightFor(w));
       }
     };
 

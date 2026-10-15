@@ -2,6 +2,7 @@
 # from this file for the Docker image (Linux, Python 3.12). Regenerate with:
 #   uv pip compile requirements.in -o requirements.txt --python-version 3.12 --python-platform x86_64-manylinux_2_28
 flask
+flask-compress
 flask-cors
 flask-limiter
 gunicorn
