@@ -138,6 +138,41 @@ function Canvas() {
 
   const onSolveEdited = () => solveExpr(recognized.trim());
 
+  // the user tapped a glyph and picked another symbol: re-read the layout
+  // with that glyph changed (positions are kept, so powers and fractions
+  // still read correctly) and solve again
+  const onCorrectGlyph = (index, char) => {
+    const characters = result.characters.map((c, i) =>
+      i === index ? { ...c, char, confidence: 1 } : c
+    );
+    const controller = startRequest();
+    setResult((prev) => ({ ...prev, characters }));
+    setSolving(true);
+    setError("");
+
+    const glyphs = characters.map(({ char: ch, x, y, w, h }) => ({ char: ch, x, y, w, h }));
+    postJson("/rebuild", { characters: glyphs }, { signal: controller.signal })
+      .then((data) => {
+        setResult((prev) => ({
+          ...prev,
+          recognized: data.recognized,
+          formatted: data.formatted_equation,
+          latex: data.latex,
+          solution: data.solution,
+          solutionLatex: data.solution_latex || "",
+          solved: data.solved,
+        }));
+        setRecognized(data.recognized);
+        if (data.message) setError(data.message);
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) setError(err.message);
+      })
+      .finally(() => {
+        if (requestRef.current === controller) setSolving(false);
+      });
+  };
+
   const onExample = (expression) => {
     setResult({ ...EMPTY, recognized: expression });
     setRecognized(expression);
@@ -325,7 +360,11 @@ function Canvas() {
           </div>
         ) : hasResult ? (
           <>
-            <SegmentationStrip characters={result.characters} />
+            <SegmentationStrip
+              characters={result.characters}
+              onCorrect={onCorrectGlyph}
+              disabled={solving}
+            />
             <ResultPanel
               recognized={recognized}
               onRecognizedChange={setRecognized}

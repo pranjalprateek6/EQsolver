@@ -308,6 +308,86 @@ label {
   box-shadow: 2px 2px 0 rgba(31, 36, 48, 0.12);
 }
 
+button.glyph {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+button.glyph:hover:not(:disabled),
+.glyph--open {
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 rgba(31, 36, 48, 0.2);
+}
+
+button.glyph:disabled {
+  cursor: default;
+}
+
+.glyph--open {
+  outline: 3px solid var(--primary);
+  outline-offset: 1px;
+}
+
+.glyph-picker {
+  margin-top: 12px;
+  padding: 12px;
+  border: 2px solid var(--line);
+  background: var(--accent);
+  display: grid;
+  gap: 10px;
+}
+
+.glyph-picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.glyph-picker__label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-right: 4px;
+  min-width: 92px;
+}
+
+.glyph-picker__option {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 8px;
+  border: 2px solid var(--line);
+  background: #fff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.glyph-picker__option:hover {
+  background: var(--card);
+  box-shadow: 2px 2px 0 rgba(31, 36, 48, 0.2);
+}
+
+.glyph-picker__option--suggested {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.glyph-picker__option--current {
+  background: var(--ink);
+  color: #fff;
+}
+
+.glyph-picker__conf {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+}
+
 .glyph--medium {
   border-color: var(--warn);
   background: #fffaf1;

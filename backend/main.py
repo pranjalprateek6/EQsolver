@@ -7,6 +7,7 @@ import numpy as np
 import onnxruntime as ort
 from PIL import Image
 
+import decode
 from preprocess import TARGET, to_model_input
 from segmentor import segment_characters
 
@@ -73,14 +74,23 @@ def open_image(image_source):
     return img
 
 
-def recognize(image_source):
+# how many of the model's best guesses to keep per glyph; the context decoder
+# chooses among them, and the UI offers them as one-tap corrections
+TOP_K = 3
+# 'context' picks the reading that makes the most sense as a whole equation;
+# 'greedy' takes each glyph's single best guess (the old behaviour)
+DEFAULT_DECODER = os.environ.get('EQSOLVER_DECODER', 'context')
+
+
+def recognize(image_source, decoder=None):
     """Recognize the characters in an image (path or file-like object).
 
-    Returns a list of per-character token dicts with the predicted symbol, its
-    confidence, a preview image, and the bounding box (x, y, w, h) so the
-    spatial parser can read the 2D layout. Ordered left to right; everything
-    runs in memory. Raises ImageTooLarge or ValueError for a rejected image
-    and OSError for data that is not a supported image.
+    Returns a list of per-character token dicts with the chosen symbol, its
+    confidence, the model's top alternatives, a preview image, and the
+    bounding box (x, y, w, h) so the spatial parser can read the 2D layout.
+    Ordered left to right; everything runs in memory. Raises ImageTooLarge or
+    ValueError for a rejected image and OSError for data that is not a
+    supported image.
     """
     img = _flatten_transparency(open_image(image_source))
     gray = np.array(img.convert('L'))
@@ -91,18 +101,23 @@ def recognize(image_source):
 
     batch = np.stack([to_model_input(p['crop']) for p in pieces]).reshape(-1, TARGET, TARGET, 1)
     probs = _session.run(None, {_input_name: batch.astype(np.float32)})[0]
-    classes = np.argmax(probs, axis=1)
-    confidences = probs[np.arange(len(probs)), classes]
+    ranked = np.argsort(-probs, axis=1)[:, :TOP_K]
 
     tokens = []
-    for piece, cls, conf in zip(pieces, classes, confidences):
+    for piece, row, order in zip(pieces, probs, ranked):
+        alternatives = [(CODE2CHAR[int(c)], round(float(row[c]), 4)) for c in order]
         tokens.append({
-            'char': CODE2CHAR[int(cls)],
-            'confidence': round(float(conf), 4),
+            'char': alternatives[0][0],
+            'confidence': alternatives[0][1],
+            'alternatives': alternatives,
             'image': _encode_crop(piece['crop']),
             'x': int(piece['x']), 'y': int(piece['y']),
             'w': int(piece['w']), 'h': int(piece['h']),
+            'shape': piece.get('shape'),
         })
+
+    if (decoder or DEFAULT_DECODER) == 'context':
+        tokens = decode.choose(tokens)
     return tokens
 
 

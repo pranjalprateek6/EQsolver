@@ -33,3 +33,55 @@ Use `--smoke` for a tiny synthetic run that just proves the pipeline works.
 `train.py`'s `CLASS_MAP` picks only the math-relevant folders from the dataset
 and maps each to the symbol the app uses. Edit it to add or drop symbols; the
 exported `mapper.csv` follows automatically.
+
+## Measuring accuracy on whole equations
+
+Per-glyph validation accuracy (about 98%) overstates what users see: an
+equation is only right if every glyph is segmented, classified and placed
+correctly. `eval_equations.py` builds equation images from real handwritten
+glyphs (linear and quadratic equations, arithmetic, parentheses, powers,
+fractions and roots), runs the full pipeline and reports:
+
+- **ExpRate**: share of equations read exactly right (same syntax tree)
+- **Answer**: share whose solution matches the true solution
+- **SegRate**: share where segmentation found the right number of glyphs
+- **SER**: symbol error rate
+
+Glyphs are drawn only from files the training run did not pick, except for
+the folders smaller than the training cap (`div`, `times`, `z`, and some
+digits), which were used whole; the report says how many glyphs came from
+those.
+
+```
+.venv\Scripts\python training/eval_equations.py --n 600
+.venv\Scripts\python training/compare_pipelines.py --n 600   # each change on the same images
+```
+
+Results on 600 equations. The tuning was done on seed 7 and checked on
+seed 11, which it never saw:
+
+| pipeline | ExpRate (seed 7) | ExpRate (seed 11) |
+|---|---|---|
+| original (greedy, no stroke merging, fraction bars ≥1.6× glyph height) | 57.7% | n/a |
+| + fraction bars detected by layout, not width | 66.2% | 66.5% |
+| + stroke merging in the segmenter | 71.3% | 70.0% |
+| + context decoder (shipped) | 74.3% | 76.5% |
+
+What each change does:
+
+- **Fraction bars by layout**: a bar with symbols directly above and below
+  it is a fraction however narrow it is; single-digit fractions were missed.
+- **Stroke merging** (`segmentor.py`): pieces that share a column with no bar
+  between them are one glyph written in several strokes (`y`, `x`, `4`); a
+  bar inside a glyph's box is its crossbar (`z`, `7`); stacked bars are an
+  `=`; dot-bar-dot is a `÷`.
+- **Context decoder** (`decode.py`): scores whole readings built from each
+  glyph's top 3 guesses, penalizing readings that do not parse, have
+  variables but nothing to solve, put a letter in an exponent, or write a
+  variable directly before a digit. Stroke geometry is trusted over the
+  classifier: a single bar is always a minus, two merged bars always `=`.
+
+Limits of this benchmark: glyphs come from one dataset (the one the model
+trained on), are pasted on a clean baseline, and do not include photos of
+paper. It is a regression gate and a way to compare changes, not a promise
+of accuracy on every user's handwriting.
