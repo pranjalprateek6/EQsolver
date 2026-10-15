@@ -155,7 +155,12 @@ def _needs_multiply(left, right):
 
 
 def _is_superscript(base, other):
-    """other is an exponent of base if it sits clearly higher and to the right."""
+    """other is an exponent of base if it sits clearly higher and to the right.
+
+    Operators are never bases: a minus is so short that the next digit's
+    centre always sits "above" it, which once read 7-2 as 7-**(2)."""
+    if base.get('char') in OPERATORS:
+        return False
     return _cx(other) > _cx(base) and _cy(other) < _cy(base) - SUPERSCRIPT_OFFSET * base['h']
 
 

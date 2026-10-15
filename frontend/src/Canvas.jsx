@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Spinner } from "react-bootstrap";
-import P5Canvas from "./P5Canvas";
+import DrawingCanvas from "./DrawingCanvas";
 import UploadButton, { readImageFile } from "./UploadButton";
 import SegmentationStrip from "./SegmentationStrip";
 import ResultPanel from "./ResultPanel";
@@ -36,7 +36,7 @@ function Canvas() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(EMPTY);
   const [recognized, setRecognized] = useState("");
-  const p5Ref = useRef(null);
+  const drawingRef = useRef(null);
   const requestRef = useRef(null);
 
   const busy = loading || solving;
@@ -91,12 +91,12 @@ function Canvas() {
   }, []);
 
   const onEvaluate = () => {
-    const p5 = p5Ref.current;
-    if (!p5 || p5.isEmpty()) {
+    const drawing = drawingRef.current;
+    if (!drawing || drawing.isEmpty()) {
       setError("Draw an equation first.");
       return;
     }
-    sendImgToServer(p5.exportImage());
+    sendImgToServer(drawing.exportImage());
   };
 
   const solveExpr = (expression) => {
@@ -181,15 +181,15 @@ function Canvas() {
 
   const onBrushChange = (value) => {
     setBrush(value);
-    p5Ref.current?.setStrokeWeight(value);
+    drawingRef.current?.setStrokeWeight(value);
   };
 
-  const onUndo = () => p5Ref.current?.undo();
-  const onRedo = () => p5Ref.current?.redo();
+  const onUndo = () => drawingRef.current?.undo();
+  const onRedo = () => drawingRef.current?.redo();
 
   const onClear = () => {
     requestRef.current?.abort();
-    p5Ref.current?.clearCanvas();
+    drawingRef.current?.clearCanvas();
     setLoading(false);
     setSolving(false);
     setError("");
@@ -227,10 +227,10 @@ function Canvas() {
       const key = event.key.toLowerCase();
       if (key === "z" && !event.shiftKey) {
         event.preventDefault();
-        p5Ref.current?.undo();
+        drawingRef.current?.undo();
       } else if ((key === "z" && event.shiftKey) || key === "y") {
         event.preventDefault();
-        p5Ref.current?.redo();
+        drawingRef.current?.redo();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -270,7 +270,7 @@ function Canvas() {
           className={`canvas-frame ${dragging ? "canvas-frame--drop" : ""}`}
           {...dropHandlers}
         >
-          <P5Canvas instanceRef={p5Ref} />
+          <DrawingCanvas ref={drawingRef} />
           {dragging && <div className="canvas-frame__drop">Drop the image to read it</div>}
         </div>
 
