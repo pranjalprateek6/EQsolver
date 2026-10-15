@@ -119,7 +119,18 @@ Draw an equation and click Evaluate, or pick one of the example chips. The segme
 }
 ```
 
+Each character also carries `alternatives` (the model's top 3 guesses with
+their confidences) and its box `x`, `y`, `w`, `h`. The chosen `char` is picked
+by a context decoder that scores whole readings, so it is not always the
+single most likely guess (see `backend/training/README.md` for how this is
+measured).
+
 `POST /solve` with `{"expression": "x**2=4"}` re-solves an edited expression without the model.
+
+`POST /rebuild` with `{"characters": [{"char": "x", "x": 0, "y": 100, "w": 28, "h": 40}, ...]}`
+re-reads characters after the user corrects some of them (tapping a tile in
+the UI). Positions are kept, so powers, fractions and roots are still read
+from the layout. It returns the same fields as `/predict` minus `characters`.
 
 Expressions use `+ - * / ** ^ =`, parentheses, `sqrt(...)`, `pi`, decimals and
 single-letter variables; juxtaposition multiplies (`2x`, `3(x+1)`). Anything

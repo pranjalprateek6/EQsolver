@@ -42,8 +42,9 @@ def test_predict_returns_character_details(client):
     chars = body['characters']
     assert len(chars) >= 1
     for char in chars:
-        assert set(char) == {'char', 'confidence', 'image'}
+        assert set(char) == {'char', 'confidence', 'image', 'alternatives', 'x', 'y', 'w', 'h'}
         assert 0.0 <= char['confidence'] <= 1.0
+        assert 1 <= len(char['alternatives']) <= 3
         assert char['image'].startswith('data:image/png;base64,')
 
 
@@ -255,3 +256,43 @@ def test_unknown_route_is_json_404(client):
     response = client.get('/no-such-thing')
     assert response.status_code == 404
     assert 'error' in response.get_json()
+
+
+# --- tap-to-correct ------------------------------------------------------
+
+def _glyph(char, x, y=100, w=28, h=40):
+    return {'char': char, 'x': x, 'y': y, 'w': w, 'h': h}
+
+
+def test_rebuild_reads_corrected_glyphs(client):
+    glyphs = [_glyph('8', 0), _glyph('+', 40), _glyph('3', 80)]
+    body = client.post('/rebuild', json={'characters': glyphs}).get_json()
+    assert body['recognized'] == '8+3'
+    assert body['solution'] == '11'
+    assert body['solved'] is True
+
+
+def test_rebuild_keeps_layout(client):
+    glyphs = [_glyph('x', 0), _glyph('2', 34, y=80, w=16, h=24), _glyph('=', 70), _glyph('9', 110)]
+    body = client.post('/rebuild', json={'characters': glyphs}).get_json()
+    assert body['recognized'] == 'x**(2)=9'
+    assert body['solution_latex'] == 'x = -3, 3'
+
+
+def test_predict_glyphs_round_trip_through_rebuild(client):
+    image = (FIXTURES / 'eight_plus_three.png').read_bytes()
+    predicted = client.post('/predict', json={'image': encode_image(image)}).get_json()
+    rebuilt = client.post('/rebuild', json={'characters': predicted['characters']}).get_json()
+    assert rebuilt['recognized'] == predicted['recognized']
+
+
+@pytest.mark.parametrize('glyphs', [
+    None, [], 'abc', [{'char': 'a', 'x': 0, 'y': 0, 'w': 1, 'h': 1}],
+    [{'char': '__import__', 'x': 0, 'y': 0, 'w': 1, 'h': 1}],
+    [{'char': '1', 'x': '0', 'y': 0, 'w': 1, 'h': 1}],
+    [{'char': '1', 'x': -5, 'y': 0, 'w': 1, 'h': 1}],
+    [{'char': '1', 'x': True, 'y': 0, 'w': 1, 'h': 1}],
+    [{'char': '1', 'x': 0, 'y': 0, 'w': 1, 'h': 1}] * 101,
+])
+def test_rebuild_rejects_bad_input(client, glyphs):
+    assert client.post('/rebuild', json={'characters': glyphs}).status_code == 400

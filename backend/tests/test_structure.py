@@ -101,3 +101,20 @@ class TestNesting:
         expr = build_expression(num + bar + den)
         assert expr == '((x**(2))/(3))'
         assert parse_expr(expr) is not None
+
+
+class TestNarrowFractions:
+    def test_single_digit_fraction_with_short_bar(self):
+        # a one-digit fraction's bar is barely wider than the digits; it is
+        # still a fraction because symbols sit directly above and below it
+        tokens = [
+            tok('3', 10, 40, 24, 40),
+            tok('-', 4, 90, 36, 5),
+            tok('4', 10, 105, 24, 40),
+            tok('+', 60, 80, 24, 24),
+            tok('1', 100, 70, 20, 40),
+        ]
+        assert build_expression(tokens) == '((3)/(4))+1'
+
+    def test_minus_between_numbers_is_still_minus(self):
+        assert build_expression([base('7', 0), tok('-', 40, 118, 26, 5), base('6', 80)]) == '7-6'

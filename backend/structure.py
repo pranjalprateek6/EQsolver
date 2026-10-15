@@ -13,9 +13,13 @@ where (x, y) is the top-left of its bounding box in image coordinates
 """
 from statistics import median
 
-# a horizontal bar this many times wider than the median symbol height is
-# treated as a fraction bar rather than a minus sign
-FRAC_BAR_WIDTH_FACTOR = 1.6
+# A horizontal bar at least this many times wider than the median symbol
+# height can be a fraction bar. It only becomes one when symbols sit both
+# directly above and directly below it (see _resolve_structures), which a
+# minus sign never has, so the width test is only there to skip specks. A
+# single-digit fraction's bar is barely wider than the digit, so the factor
+# must stay well under 1.
+FRAC_BAR_WIDTH_FACTOR = 0.6
 # a symbol whose vertical centre sits this fraction of the base height above
 # the base's centre is treated as a superscript (exponent)
 SUPERSCRIPT_OFFSET = 0.28

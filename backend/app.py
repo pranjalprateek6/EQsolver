@@ -13,7 +13,7 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import sandbox
-from main import ImageTooLarge, healthcheck, recognize
+from main import CODE2CHAR, ImageTooLarge, healthcheck, recognize
 from safe_parse import MAX_LENGTH
 from structure import build_expression
 
@@ -154,17 +154,21 @@ def predict():
     if not tokens:
         return _error("no characters detected in the image", 422)
 
-    # read the 2D layout into an explicit expression, then solve it
+    characters = [
+        {'char': t['char'], 'confidence': t['confidence'], 'image': t['image'],
+         'alternatives': [{'char': c, 'confidence': p} for c, p in t.get('alternatives', [])],
+         'x': t['x'], 'y': t['y'], 'w': t['w'], 'h': t['h']}
+        for t in tokens
+    ]
+    return jsonify(characters=characters, **_read_and_solve(tokens))
+
+
+def _read_and_solve(tokens):
+    """Read the 2D layout into an explicit expression, then solve it."""
     expression = build_expression(tokens)
     result, message = _solve(expression)
     solution = result['solution'] if result else None
-
-    characters = [
-        {'char': t['char'], 'confidence': t['confidence'], 'image': t['image']}
-        for t in tokens
-    ]
     body = dict(
-        characters=characters,
         recognized=result['expression'] if result else expression,
         formatted_equation=result['expression'] if result else expression,
         latex=result['latex'] if result else '',
@@ -174,7 +178,37 @@ def predict():
     )
     if message:
         body['message'] = message
-    return jsonify(body)
+    return body
+
+
+# symbols a corrected glyph may be set to: exactly what the model can emit
+ALLOWED_GLYPHS = set(CODE2CHAR.values())
+MAX_GLYPHS = 100
+MAX_COORD = 100_000
+
+
+def _valid_glyph(t):
+    return (isinstance(t, dict) and t.get('char') in ALLOWED_GLYPHS
+            and all(isinstance(t.get(k), int) and not isinstance(t.get(k), bool)
+                    and 0 <= t[k] <= MAX_COORD for k in ('x', 'y', 'w', 'h')))
+
+
+@app.route('/rebuild', methods=['POST'])
+@limiter.limit(_rate_limit)
+def rebuild():
+    """Re-read glyphs after the user corrected some of them (tapping a tile
+    and picking another symbol), keeping each glyph's position so powers,
+    fractions and roots are still read from the layout."""
+    glyphs = _json_body().get('characters')
+    if not isinstance(glyphs, list) or not glyphs:
+        return _error("missing 'characters' list", 400)
+    if len(glyphs) > MAX_GLYPHS:
+        return _error(f"too many characters (max {MAX_GLYPHS})", 400)
+    if not all(_valid_glyph(t) for t in glyphs):
+        return _error("each character needs a known 'char' and integer 'x', 'y', 'w', 'h'", 400)
+    tokens = [{'char': t['char'], 'x': t['x'], 'y': t['y'], 'w': t['w'], 'h': t['h']}
+              for t in glyphs]
+    return jsonify(_read_and_solve(tokens))
 
 
 @app.route('/solve', methods=['POST'])
