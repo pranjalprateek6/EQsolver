@@ -6,6 +6,7 @@ a 28x28 box while preserving aspect ratio, and centre it. Preserving aspect
 ratio is the key fix over the old naive resize, which squashed tall glyphs
 like '1' and wide ones like '-' into squares unlike the training data.
 """
+
 import cv2
 import numpy as np
 
@@ -30,7 +31,7 @@ def to_model_input(gray):
 
     # invert so ink is bright, then crop to the glyph
     inverted = 255.0 - gray.astype(np.float32)
-    crop = inverted[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    crop = inverted[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
     h, w = crop.shape
 
     inner = TARGET - 2 * PAD
@@ -42,7 +43,7 @@ def to_model_input(gray):
     canvas = np.zeros((TARGET, TARGET), dtype=np.float32)
     oy = (TARGET - nh) // 2
     ox = (TARGET - nw) // 2
-    canvas[oy:oy + nh, ox:ox + nw] = resized
+    canvas[oy : oy + nh, ox : ox + nw] = resized
 
     # scale to 0..1 by the glyph's own peak so faint strokes keep full contrast
     peak = canvas.max()

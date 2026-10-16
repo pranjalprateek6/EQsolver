@@ -1,5 +1,6 @@
 """The allowlisted parser: what it accepts, what it refuses, and that hostile
 input is refused quickly instead of being evaluated."""
+
 import time
 
 import pytest
@@ -42,18 +43,21 @@ class TestAccepts:
 
 
 class TestRefuses:
-    @pytest.mark.parametrize('text', [
-        "__import__('os').system('echo pwned')",
-        'x.__class__',
-        "eval('1')",
-        'lambda: 1',
-        'factorial(10)',
-        'exp(1)',
-        '[1, 2]',
-        'x; y',
-        '1 if x else 2',
-        'garbage',
-    ])
+    @pytest.mark.parametrize(
+        'text',
+        [
+            "__import__('os').system('echo pwned')",
+            'x.__class__',
+            "eval('1')",
+            'lambda: 1',
+            'factorial(10)',
+            'exp(1)',
+            '[1, 2]',
+            'x; y',
+            '1 if x else 2',
+            'garbage',
+        ],
+    )
     def test_code_and_unknown_names(self, text):
         with pytest.raises(ParseError):
             parse(text)

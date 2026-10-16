@@ -10,6 +10,7 @@ Sentry is enabled only when SENTRY_DSN is set. Requests carry handwriting
 images, so request bodies, cookies, user details and stack-frame locals (which
 hold the decoded image) are never sent; expressions in log messages are fine.
 """
+
 import json
 import logging
 import os
@@ -88,14 +89,17 @@ def init_request_logging(app):
         if start is None or (request.path == '/healthz' and response.status_code < 400):
             return response
         # no query string or body: they can carry user input and images
-        log.info('request', extra={
-            'method': request.method,
-            'path': request.path,
-            'endpoint': request.endpoint,
-            'status': response.status_code,
-            'latency_ms': round((time.perf_counter() - start) * 1000, 1),
-            'bytes_in': request.content_length,
-        })
+        log.info(
+            'request',
+            extra={
+                'method': request.method,
+                'path': request.path,
+                'endpoint': request.endpoint,
+                'status': response.status_code,
+                'latency_ms': round((time.perf_counter() - start) * 1000, 1),
+                'bytes_in': request.content_length,
+            },
+        )
         return response
 
 
@@ -105,6 +109,7 @@ _sentry_enabled = False
 def _sentry_tag(key, value):
     if _sentry_enabled:
         import sentry_sdk
+
         sentry_sdk.set_tag(key, value)
 
 

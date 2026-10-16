@@ -11,6 +11,7 @@ the working always agrees with the answer. Covered:
 Anything else (several variables, higher degree, a variable under a root or
 in a denominator) gets no steps; the answer alone is still shown.
 """
+
 from sympy import Add, Poly, PolynomialError, expand, factor, factor_list, fraction, latex, lcm, solve
 
 MAX_STEPS_DEGREE = 2
@@ -35,8 +36,7 @@ def _linear(poly, var, current):
     steps = []
     collected = _eq(a * var, -b)
     if collected != current:
-        steps.append(_step(f'Move the {var} terms to one side and the numbers to the other',
-                           collected))
+        steps.append(_step(f'Move the {var} terms to one side and the numbers to the other', collected))
     if a != 1:
         steps.append(_step(f'Divide both sides by {latex(a)}', _eq(var, -b / a)))
     return steps
@@ -57,21 +57,29 @@ def _quadratic(poly, var, current):
     linear_factors = [f for f, _ in factors if Poly(f, var).degree() == 1]
     if linear_factors and all(Poly(f, var).degree() <= 1 for f, _ in factors):
         steps.append(_step('Factor', f'{latex(factor(expr))} = 0'))
-        steps.append(_step('Set each factor equal to zero',
-                           r',\quad '.join(f'{latex(f)} = 0' for f in linear_factors)))
+        steps.append(
+            _step('Set each factor equal to zero', r',\quad '.join(f'{latex(f)} = 0' for f in linear_factors))
+        )
         steps.append(_step('Solve each one', _roots_text(var, roots)))
         return steps
 
-    disc = b ** 2 - 4 * a * c
-    steps.append(_step('Use the quadratic formula',
-                       rf'{latex(var)} = \frac{{-b \pm \sqrt{{b^2 - 4ac}}}}{{2a}}'
-                       rf' \quad (a = {latex(a)},\ b = {latex(b)},\ c = {latex(c)})'))
+    disc = b**2 - 4 * a * c
+    steps.append(
+        _step(
+            'Use the quadratic formula',
+            rf'{latex(var)} = \frac{{-b \pm \sqrt{{b^2 - 4ac}}}}{{2a}}'
+            rf' \quad (a = {latex(a)},\ b = {latex(b)},\ c = {latex(c)})',
+        )
+    )
     note = ', which is negative, so the roots are complex' if disc.is_negative else ''
-    steps.append(_step(f'Work out the discriminant{note}',
-                       rf'b^2 - 4ac = {latex(disc)}'))
-    steps.append(_step('Substitute and simplify',
-                       rf'{latex(var)} = \frac{{{latex(-b)} \pm \sqrt{{{latex(disc)}}}}}{{{latex(2 * a)}}}'
-                       rf' \;\Rightarrow\; ' + _roots_text(var, roots)))
+    steps.append(_step(f'Work out the discriminant{note}', rf'b^2 - 4ac = {latex(disc)}'))
+    steps.append(
+        _step(
+            'Substitute and simplify',
+            rf'{latex(var)} = \frac{{{latex(-b)} \pm \sqrt{{{latex(disc)}}}}}{{{latex(2 * a)}}}'
+            rf' \;\Rightarrow\; ' + _roots_text(var, roots),
+        )
+    )
     return steps
 
 
@@ -93,8 +101,7 @@ def equation_steps(lhs, rhs, written_latex):
     den = lcm(denominators) if denominators else 1
     if den != 1:
         left, right = expand(lhs * den), expand(rhs * den)
-        steps.append(_step(f'Multiply both sides by {latex(den)} to clear the fractions',
-                           _eq(left, right)))
+        steps.append(_step(f'Multiply both sides by {latex(den)} to clear the fractions', _eq(left, right)))
     else:
         left, right = expand(lhs), expand(rhs)
         # SymPy keeps 3(x+1) as written, so a change here means there were

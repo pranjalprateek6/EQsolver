@@ -22,10 +22,25 @@ as an expression being simplified: each must equal the one before.
 Every input goes through the allowlisted parser (safe_parse), never eval. This
 runs inside the sandbox (see sandbox.py), which enforces the time limit.
 """
+
 import re
 
-from sympy import (Add, Complement, Dummy, EmptySet, FiniteSet, Interval, S, Union, cancel,
-                   expand, latex, simplify, solveset, together)
+from sympy import (
+    Add,
+    Complement,
+    Dummy,
+    EmptySet,
+    FiniteSet,
+    Interval,
+    S,
+    Union,
+    cancel,
+    expand,
+    latex,
+    simplify,
+    solveset,
+    together,
+)
 
 import calculator
 from safe_parse import ParseError, parse, to_latex
@@ -38,8 +53,15 @@ UNCHECKED = 'this line could not be checked'
 DIFFERENT = 'this line has different solutions than the one before'
 NOT_EQUAL = 'this is not equal to the line before'
 
-_CHECK_ERRORS = (TypeError, ValueError, NotImplementedError, AttributeError,
-                 RecursionError, OverflowError, ZeroDivisionError)
+_CHECK_ERRORS = (
+    TypeError,
+    ValueError,
+    NotImplementedError,
+    AttributeError,
+    RecursionError,
+    OverflowError,
+    ZeroDivisionError,
+)
 
 
 def _parse_line(text):
@@ -113,8 +135,9 @@ def _sign_error(prev, cur):
     matches the previous one with that term's sign flipped on the move."""
     (l1, r1), (l2, r2) = prev, cur
     d1, d2 = expand(l1 - r1), expand(l2 - r2)
-    moves = [(t, d1 - 2 * t) for t in Add.make_args(expand(l1))] + \
-            [(t, d1 + 2 * t) for t in Add.make_args(expand(r1))]
+    moves = [(t, d1 - 2 * t) for t in Add.make_args(expand(l1))] + [
+        (t, d1 + 2 * t) for t in Add.make_args(expand(r1))
+    ]
     for term, wrong in moves:
         if term != 0 and expand(wrong) != 0 and _number_ratio(d2, wrong) is not None:
             return term
@@ -127,7 +150,9 @@ def _one_side(prev, cur):
     (l1, r1), (l2, r2) = prev, cur
     for new_l, new_r in ((l2, r2), (r2, l2)):  # the sides may be swapped
         for old, new, kept_old, kept_new, side in (
-                (l1, new_l, r1, new_r, 'left'), (r1, new_r, l1, new_l, 'right')):
+            (l1, new_l, r1, new_r, 'left'),
+            (r1, new_r, l1, new_l, 'right'),
+        ):
             if old == 0 or new == 0 or simplify(kept_old - kept_new) != 0:
                 continue
             factor = _number_ratio(new, old)
@@ -135,13 +160,19 @@ def _one_side(prev, cur):
                 continue
             other = 'right' if side == 'left' else 'left'
             if factor == -1:
-                return (f'it looks like you changed the sign of the {side} side only; '
-                        f'do the same to the {other} side')
+                return (
+                    f'it looks like you changed the sign of the {side} side only; '
+                    f'do the same to the {other} side'
+                )
             if abs(factor) < 1:
-                return (f'it looks like you divided only the {side} side by '
-                        f'{_plain(1 / factor)}; divide the {other} side too')
-            return (f'it looks like you multiplied only the {side} side by '
-                    f'{_plain(factor)}; multiply the {other} side too')
+                return (
+                    f'it looks like you divided only the {side} side by '
+                    f'{_plain(1 / factor)}; divide the {other} side too'
+                )
+            return (
+                f'it looks like you multiplied only the {side} side by '
+                f'{_plain(factor)}; multiply the {other} side too'
+            )
     return None
 
 
@@ -154,12 +185,16 @@ def _root_hint(a, b, var):
     if not (isinstance(a, FiniteSet) and isinstance(b, FiniteSet)):
         return None
     if len(b) < len(a) and _contains_points(a, b):
-        return (f'this line lost a solution; dividing by something with {var} in it, '
-                f'or taking a square root without ±, can drop one')
+        return (
+            f'this line lost a solution; dividing by something with {var} in it, '
+            f'or taking a square root without ±, can drop one'
+        )
     if len(b) > len(a) and _contains_points(b, a):
-        return (f'this line gained a solution that does not work in the line before; '
-                f'squaring both sides or multiplying by something with {var} in it '
-                f'can add one')
+        return (
+            f'this line gained a solution that does not work in the line before; '
+            f'squaring both sides or multiplying by something with {var} in it '
+            f'can add one'
+        )
     return None
 
 
@@ -181,8 +216,10 @@ def _check_equations(prev, cur, var):
         return False, hint
     term = _sign_error(prev, cur)
     if term is not None:
-        return False, (f'check the sign when you moved {_plain(term)} across the =: '
-                       f'it should become {_plain(-term)} on the other side')
+        return False, (
+            f'check the sign when you moved {_plain(term)} across the =: '
+            f'it should become {_plain(-term)} on the other side'
+        )
     if var is not None:
         hint = _root_hint(a, b, var)
         if hint:
@@ -258,9 +295,14 @@ def check_lines(lines, reveal=False):
     result = {
         'lines': out,
         'first_error': first_error,
-        'finished': bool(equations and first_error is None and last is not None
-                         and len(rows) > 1 and _finished(last)
-                         and all(r['ok'] for r in out)),
+        'finished': bool(
+            equations
+            and first_error is None
+            and last is not None
+            and len(rows) > 1
+            and _finished(last)
+            and all(r['ok'] for r in out)
+        ),
     }
     if reveal:
         result['answer_latex'] = _answer(readable[0] if readable else None, equations)

@@ -61,6 +61,7 @@ class TestSolveJob:
 
     def job(self, expression):
         from calculator import solve_job
+
         return solve_job(expression)
 
     def test_roots_use_the_real_variable(self):

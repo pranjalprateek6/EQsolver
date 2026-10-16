@@ -41,7 +41,7 @@ export async function postJson(path, payload, { signal } = {}) {
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
-  } catch (err) {
+  } catch {
     if (signal?.aborted) throw new ApiError("Cancelled.", 0);
     if (controller.signal.aborted) {
       throw new ApiError("The server took too long to answer. Try again in a moment.", 0);

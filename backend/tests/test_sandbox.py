@@ -1,5 +1,6 @@
 """The killable solver pool: results match the in-process solver, an overrun
 is killed with SolveTimeout, and the pool keeps working afterwards."""
+
 import time
 
 import pytest
@@ -15,6 +16,7 @@ def pool():
 def test_solves_in_a_helper(pool):
     # the helper returns exactly what the in-process solver would
     from calculator import solve_job
+
     result = pool.run('x**2=4')
     assert result == solve_job('x**2=4')
     assert result['solution_latex'] == 'x = -2, 2'
@@ -41,6 +43,7 @@ def test_overrun_is_stopped_and_pool_recovers(pool):
 
 def test_checks_in_a_helper(pool):
     from checker import check_lines
+
     lines = ['2x+3=11', '2x=14']
     assert pool.run({'lines': lines}, kind='check') == check_lines(lines)
 

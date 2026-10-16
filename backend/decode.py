@@ -15,9 +15,11 @@ parser and the allowlisted parser, never SymPy's solver.
 Stroke geometry from the segmenter is treated as a hard fact: a single wide
 bar can only be a minus (or fraction bar), and two merged bars only an '='.
 """
+
 import heapq
 import math
 import re
+from itertools import pairwise
 
 from safe_parse import ParseError, parse_tree
 from structure import build_expression
@@ -32,7 +34,7 @@ MIN_PROB = 1e-3
 # log-space penalties (e^-2 ~ 0.14: a penalty of 2 lets a guess about 7x
 # less likely win if it removes the problem)
 UNPARSEABLE = 25.0
-UNSOLVABLE = 2.0        # variables but no '=': nothing to solve for
+UNSOLVABLE = 2.0  # variables but no '=': nothing to solve for
 VARIABLE_IN_EXPONENT = 2.0
 VARIABLE_THEN_DIGIT = 2.0  # 'x3' is almost always '×3' or a misread
 
@@ -51,8 +53,11 @@ def _with_shape_facts(tokens):
 
 
 def _candidates(token):
-    alts = [(c, p) for c, p in token.get('alternatives') or [(token['char'], token['confidence'])]
-            if p >= MIN_PROB]
+    alts = [
+        (c, p)
+        for c, p in token.get('alternatives') or [(token['char'], token['confidence'])]
+        if p >= MIN_PROB
+    ]
     return alts or [(token['char'], max(token['confidence'], MIN_PROB))]
 
 
@@ -60,14 +65,14 @@ def _readings(options):
     """Yield (log_prob, choice_indices) best-first over independent choices."""
     logs = [[math.log(max(p, MIN_PROB)) for _, p in opts] for opts in options]
     start = tuple(0 for _ in options)
-    heap = [(-sum(l[0] for l in logs), start)]
+    heap = [(-sum(lp[0] for lp in logs), start)]
     seen = {start}
     while heap:
         neg, picks = heapq.heappop(heap)
         yield -neg, picks
         for i, k in enumerate(picks):
             if k + 1 < len(options[i]):
-                nxt = picks[:i] + (k + 1,) + picks[i + 1:]
+                nxt = picks[:i] + (k + 1,) + picks[i + 1 :]
                 if nxt not in seen:
                     seen.add(nxt)
                     heapq.heappush(heap, (neg - logs[i][k + 1] + logs[i][k], nxt))
@@ -89,7 +94,7 @@ def _penalty(tokens, expression):
     if re.search(r'\*\*\([^)]*[xyz]', expression):
         penalty += VARIABLE_IN_EXPONENT
     ordered = sorted(tokens, key=lambda t: t['x'])
-    for a, b in zip(ordered, ordered[1:]):
+    for a, b in pairwise(ordered):
         same_line = abs(_centre_y(a) - _centre_y(b)) < 0.25 * max(a['h'], b['h'])
         if a['char'] in VARIABLES and b['char'] in DIGITS and same_line:
             penalty += VARIABLE_THEN_DIGIT
@@ -110,8 +115,10 @@ def choose(tokens):
             # readings come best-first by probability, so once even a
             # penalty-free one cannot beat the best score, stop
             break
-        reading = [{**t, 'char': options[i][k][0], 'confidence': round(options[i][k][1], 4)}
-                   for i, (t, k) in enumerate(zip(tokens, picks))]
+        reading = [
+            {**t, 'char': options[i][k][0], 'confidence': round(options[i][k][1], 4)}
+            for i, (t, k) in enumerate(zip(tokens, picks, strict=True))
+        ]
         score = log_prob - _penalty(reading, build_expression(reading))
         if best is None or score > best[0]:
             best = (score, reading)

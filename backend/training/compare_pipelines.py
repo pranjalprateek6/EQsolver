@@ -4,6 +4,7 @@ so improvements are measured against the same baseline.
 Usage (from backend/):
     python training/compare_pipelines.py --n 600
 """
+
 import argparse
 import os
 import subprocess
@@ -29,13 +30,29 @@ def main():
     print('|---|---|---|---|---|')
     for name, flags in VARIANTS:
         out = subprocess.run(
-            [sys.executable, os.path.join(HERE, 'eval_equations.py'),
-             '--n', str(args.n), '--seed', str(args.seed), *flags],
-            capture_output=True, text=True, env=env, check=True).stdout
-        metrics = {line.split()[0]: line.split()[1] for line in out.splitlines()
-                   if line.split() and line.split()[0] in ('ExpRate', 'Answer', 'SegRate', 'SER')}
-        print(f"| {name} | {metrics['ExpRate']} | {metrics['Answer']} | "
-              f"{metrics['SegRate']} | {metrics['SER']} |")
+            [
+                sys.executable,
+                os.path.join(HERE, 'eval_equations.py'),
+                '--n',
+                str(args.n),
+                '--seed',
+                str(args.seed),
+                *flags,
+            ],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=True,
+        ).stdout
+        metrics = {
+            line.split()[0]: line.split()[1]
+            for line in out.splitlines()
+            if line.split() and line.split()[0] in ('ExpRate', 'Answer', 'SegRate', 'SER')
+        }
+        print(
+            f"| {name} | {metrics['ExpRate']} | {metrics['Answer']} | "
+            f"{metrics['SegRate']} | {metrics['SER']} |"
+        )
 
 
 if __name__ == '__main__':

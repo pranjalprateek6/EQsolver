@@ -33,6 +33,7 @@ Image.MAX_IMAGE_PIXELS = MAX_IMAGE_PIXELS
 class ImageTooLarge(ValueError):
     """The image has more pixels than MAX_IMAGE_PIXELS."""
 
+
 # load the model and the id -> character mapping once at import time
 _session = ort.InferenceSession(MODEL_PATH, providers=['CPUExecutionProvider'])
 _input_name = _session.get_inputs()[0].name
@@ -101,8 +102,11 @@ def recognize_lines(image_source, decoder=None):
     Returns one token list (as from recognize) per written line, top line
     first. Raises like recognize.
     """
-    return [tokens for tokens in (_classify(pieces, decoder)
-                                  for pieces in segment_lines(_gray(image_source))) if tokens]
+    return [
+        tokens
+        for tokens in (_classify(pieces, decoder) for pieces in segment_lines(_gray(image_source)))
+        if tokens
+    ]
 
 
 def _gray(image_source):
@@ -119,17 +123,21 @@ def _classify(pieces, decoder=None):
     ranked = np.argsort(-probs, axis=1)[:, :TOP_K]
 
     tokens = []
-    for piece, row, order in zip(pieces, probs, ranked):
+    for piece, row, order in zip(pieces, probs, ranked, strict=True):
         alternatives = [(CODE2CHAR[int(c)], round(float(row[c]), 4)) for c in order]
-        tokens.append({
-            'char': alternatives[0][0],
-            'confidence': alternatives[0][1],
-            'alternatives': alternatives,
-            'image': _encode_crop(piece['crop']),
-            'x': int(piece['x']), 'y': int(piece['y']),
-            'w': int(piece['w']), 'h': int(piece['h']),
-            'shape': piece.get('shape'),
-        })
+        tokens.append(
+            {
+                'char': alternatives[0][0],
+                'confidence': alternatives[0][1],
+                'alternatives': alternatives,
+                'image': _encode_crop(piece['crop']),
+                'x': int(piece['x']),
+                'y': int(piece['y']),
+                'w': int(piece['w']),
+                'h': int(piece['h']),
+                'shape': piece.get('shape'),
+            }
+        )
 
     if (decoder or DEFAULT_DECODER) == 'context':
         tokens = decode.choose(tokens)

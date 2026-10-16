@@ -7,6 +7,7 @@ Prerequisite: a Kaggle API token. Either
 On Windows ~ is C:\\Users\\<you>. Then run:  python training/fetch_data.py
 It extracts to backend/training/data/, ready for train.py.
 """
+
 import os
 import sys
 

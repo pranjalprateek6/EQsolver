@@ -1,0 +1,13 @@
+# Lint and format settings for the backend (run from backend/):
+#   ruff check . && ruff format --check .
+line-length = 110
+target-version = "py312"
+extend-exclude = ["training/data"]
+
+[lint]
+# pyflakes, pycodestyle, import order, bugbear, pyupgrade
+select = ["F", "E", "W", "I", "B", "UP"]
+
+[format]
+# the code mixes quote styles; keep them rather than rewrite every string
+quote-style = "preserve"

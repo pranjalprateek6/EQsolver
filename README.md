@@ -102,6 +102,17 @@ Both suites also run in CI on every push, along with a job that builds the
 production Docker image and smoke-tests it (health check, a solve, a hostile
 input, and a runaway solve that must be cut off).
 
+CI also fails on lint and formatting. Run the same checks locally:
+
+```
+cd backend && pip install -r requirements-dev.txt && ruff check . && ruff format --check .
+cd frontend && npm run lint
+```
+
+`ruff format .` and `ruff check --fix .` fix most findings. Dependabot
+(`.github/dependabot.yml`) opens weekly grouped update PRs for pip, npm,
+GitHub Actions and the Docker base images; merge them once CI is green.
+
 ## Usage
 
 Draw an equation and click Evaluate, or pick one of the example chips. The segmentation preview, the editable recognized equation, and the solution appear in the results panel beside the canvas. If a symbol is misread, fix it in the recognized field and press Solve.

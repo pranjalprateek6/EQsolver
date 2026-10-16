@@ -1,4 +1,5 @@
 """Step-by-step working: computed by SymPy, always agreeing with the answer."""
+
 from calculator import solve_job
 
 
@@ -42,8 +43,12 @@ class TestLinear:
 class TestQuadratic:
     def test_factors_rational_roots(self):
         t = titles('x^2=2x+8')
-        assert t[1:] == ['Bring everything to one side', 'Factor',
-                         'Set each factor equal to zero', 'Solve each one']
+        assert t[1:] == [
+            'Bring everything to one side',
+            'Factor',
+            'Set each factor equal to zero',
+            'Solve each one',
+        ]
         assert last('x^2=2x+8') == 'x = -2, 4'
 
     def test_skips_rearranging_when_already_standard(self):

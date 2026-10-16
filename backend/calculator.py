@@ -106,8 +106,8 @@ def _roots_latex(roots, lhs, rhs):
         # several variables: each solution expresses some of them in terms
         # of the others, e.g. x = y - z
         return ',\\quad '.join(
-            ', '.join(f'{latex(var)} = {latex(val)}' for var, val in sol.items())
-            for sol in roots)
+            ', '.join(f'{latex(var)} = {latex(val)}' for var, val in sol.items()) for sol in roots
+        )
     symbols = sorted((lhs - rhs).free_symbols, key=lambda s: s.name)
     values = ', '.join(_value_latex(r) if len(roots) == 1 else latex(r) for r in roots)
     if len(symbols) == 1:
@@ -119,8 +119,13 @@ def solve_job(expression):
     """Everything one request needs, as plain picklable data. This is what the
     sandboxed solver process runs (see sandbox.py). Parses and solves once."""
     expression = normalize(expression)
-    result = {'expression': expression, 'solution': None, 'solution_latex': '',
-              'latex': to_latex(expression), 'steps': []}
+    result = {
+        'expression': expression,
+        'solution': None,
+        'solution_latex': '',
+        'latex': to_latex(expression),
+        'steps': [],
+    }
     try:
         lhs, rhs = parse(expression)
         if rhs is None:
