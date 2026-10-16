@@ -209,7 +209,7 @@ All settings are environment variables with production-safe defaults.
 | `LOG_LEVEL` | `INFO` | Log level |
 | `LOG_FORMAT` | `json` | `json` (one object per line) or `text` for a readable local console |
 | `SENTRY_DSN` | unset | Backend error tracking; Sentry is off unless this is set |
-| `SENTRY_ENVIRONMENT` | `production` | Environment name on backend Sentry events |
+| `SENTRY_ENVIRONMENT` | `production` (`preview` on Render PR previews) | Environment name on backend Sentry events |
 | `SENTRY_TRACES_SAMPLE_RATE` | `0` | Share of requests sent to Sentry as performance traces |
 | `VITE_SENTRY_DSN` | unset | Frontend error tracking, read at **build** time (a Docker build arg; on Render, set it as an environment variable before the deploy) |
 | `VITE_SENTRY_ENVIRONMENT` | `production` | Environment name on frontend Sentry events (build time) |

@@ -142,7 +142,9 @@ def init_sentry():
     sentry_sdk.init(
         dsn=dsn,
         integrations=[FlaskIntegration()],
-        environment=os.environ.get('SENTRY_ENVIRONMENT', 'production'),
+        # Render sets IS_PULL_REQUEST on pull request previews
+        environment=os.environ.get('SENTRY_ENVIRONMENT')
+        or ('preview' if os.environ.get('IS_PULL_REQUEST') == 'true' else 'production'),
         # Render sets RENDER_GIT_COMMIT on every deploy
         release=os.environ.get('SENTRY_RELEASE') or os.environ.get('RENDER_GIT_COMMIT'),
         traces_sample_rate=float(os.environ.get('SENTRY_TRACES_SAMPLE_RATE', '0')),
