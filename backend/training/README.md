@@ -106,3 +106,20 @@ The splitter cuts on vertical gaps of at least 0.35 median glyph heights,
 and never between a thin fraction bar and the numerator or denominator
 centred on it, so loosely written fractions stay in one line. Per-line
 ExpRate stays close to the single-line figure (74.5% on seed 7).
+
+### Accuracy gate in CI
+
+The dataset is too large to commit, so CI checks a fixed sample instead:
+`backend/tests/fixtures/equations/` holds the first 60 images of the seed-7
+benchmark and `truths.json` with what each says, saved with
+
+```
+.venv\Scripts\python training/eval_equations.py --n 60 --save-dir tests/fixtures/equations
+```
+
+`tests/test_accuracy.py` runs the full pipeline on them and fails if ExpRate
+drops below 73% (today: 78.3%, 47 of 60), so a change to segmentation, the
+model, the decoder or the parser that costs four or more equations fails the
+build. Switching to the greedy decoder, for example, scores 71.7% and fails.
+When a change genuinely improves accuracy, raise `BASELINE` and `THRESHOLD`
+in the test so the gain is kept.
