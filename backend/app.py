@@ -15,12 +15,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import sandbox
 from checker import MAX_LINES
 from main import CODE2CHAR, ImageTooLarge, healthcheck, recognize, recognize_lines
+from observability import configure_logging, init_request_logging, init_sentry
 from safe_parse import MAX_LENGTH
 from structure import build_expression
 
-logging.basicConfig(level=os.environ.get('LOG_LEVEL', 'INFO'),
-                    format='%(asctime)s %(levelname)s %(name)s: %(message)s')
+configure_logging()
 log = logging.getLogger('eqsolver')
+# before the app is created, so the Flask integration hooks in
+init_sentry()
 
 # in a production build the compiled frontend is copied here and served by Flask
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
@@ -29,6 +31,7 @@ app = Flask(__name__, static_folder=STATIC_DIR, static_url_path='')
 # a base64 phone photo is about 4/3 of the file size; refuse anything bigger
 app.config['MAX_CONTENT_LENGTH'] = int(os.environ.get('MAX_REQUEST_BYTES', str(10 * 1024 * 1024)))
 app.config['RATE_LIMIT'] = os.environ.get('RATE_LIMIT', '30 per minute')
+init_request_logging(app)
 
 # Behind a reverse proxy (Render, Cloudflare) the client address arrives in
 # X-Forwarded-For. Trust exactly as many hops as there are proxies, or the
@@ -43,7 +46,7 @@ if PROXY_COUNT:
 # frontend elsewhere.
 CORS_ORIGINS = [o.strip() for o in os.environ.get(
     'CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',') if o.strip()]
-CORS(app, origins=CORS_ORIGINS)
+CORS(app, origins=CORS_ORIGINS, expose_headers=['X-Request-ID'])
 
 # gzip/brotli for the JS/CSS bundle and JSON responses
 Compress(app)

@@ -7,6 +7,9 @@ import "@fontsource/source-code-pro/600.css";
 import "@fontsource/source-code-pro/700.css";
 import "./index.css";
 import App from "./App";
+import { initMonitoring } from "./monitoring";
+
+initMonitoring();
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

@@ -206,6 +206,31 @@ All settings are environment variables with production-safe defaults.
 | `PROXY_COUNT` | `0` | Reverse proxies in front of the app (Render: `1`) |
 | `CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed cross-origin callers |
 | `FLASK_DEBUG` | unset | `1` enables the debugger for `python app.py` |
+| `LOG_LEVEL` | `INFO` | Log level |
+| `LOG_FORMAT` | `json` | `json` (one object per line) or `text` for a readable local console |
+| `SENTRY_DSN` | unset | Backend error tracking; Sentry is off unless this is set |
+| `SENTRY_ENVIRONMENT` | `production` (`preview` on Render PR previews) | Environment name on backend Sentry events |
+| `SENTRY_TRACES_SAMPLE_RATE` | `0` | Share of requests sent to Sentry as performance traces |
+| `VITE_SENTRY_DSN` | unset | Frontend error tracking, read at **build** time (a Docker build arg; on Render, set it as an environment variable before the deploy) |
+| `VITE_SENTRY_ENVIRONMENT` | `production` | Environment name on frontend Sentry events (build time) |
+
+### Logs and error tracking
+
+Every request is logged as one JSON line with its method, path, endpoint,
+status, latency and a request id; health checks are only logged when they
+fail. Send an `X-Request-ID` header to choose the id (letters, digits and
+`._:-`, up to 128 characters), otherwise one is generated; either way it comes
+back in the `X-Request-ID` response header and is tagged on Sentry events, so a
+report from a user can be matched to the log lines. Request bodies, query
+strings and images are never logged.
+
+To turn on Sentry, create a project for Flask and one for React at
+[sentry.io](https://sentry.io) (the free tier is enough), then set
+`SENTRY_DSN` and `VITE_SENTRY_DSN` on the Render service and redeploy. Events
+never include request bodies, cookies, user details or stack-frame variables,
+and any image data is blanked before it is sent; expressions can appear in
+error messages. Without the DSNs nothing is sent and the frontend does not
+even download the Sentry code.
 
 Dependencies are pinned in `backend/requirements.txt`, generated from
 `backend/requirements.in` with `uv pip compile` (the command is in the file).
