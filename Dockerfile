@@ -13,7 +13,7 @@ ARG VITE_SENTRY_DSN=""
 ARG VITE_SENTRY_ENVIRONMENT=production
 RUN VITE_SENTRY_DSN="$VITE_SENTRY_DSN" VITE_SENTRY_ENVIRONMENT="$VITE_SENTRY_ENVIRONMENT" npm run build
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 WORKDIR /app
 # writable cache location (some hosts run the container as a non-root user
 # with a read-only home)
