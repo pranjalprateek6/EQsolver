@@ -13,9 +13,11 @@ def pool():
 
 
 def test_solves_in_a_helper(pool):
+    # the helper returns exactly what the in-process solver would
+    from calculator import solve_job
     result = pool.run('x**2=4')
-    assert result == {'expression': 'x**2=4', 'solution': '[-2, 2]',
-                      'solution_latex': 'x = -2, 2', 'latex': 'x^{2} = 4'}
+    assert result == solve_job('x**2=4')
+    assert result['solution_latex'] == 'x = -2, 2'
 
 
 def test_unsolvable_has_no_solution(pool):

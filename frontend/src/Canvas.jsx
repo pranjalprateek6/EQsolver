@@ -5,6 +5,7 @@ import UploadButton, { readImageFile } from "./UploadButton";
 import SegmentationStrip from "./SegmentationStrip";
 import ResultPanel from "./ResultPanel";
 import { postJson } from "./api";
+import { clearHistory, expressionFromLink, loadHistory, remember, shareLink } from "./history";
 import "./App.css";
 
 const EMPTY = {
@@ -14,6 +15,7 @@ const EMPTY = {
   latex: "",
   solution: "",
   solutionLatex: "",
+  steps: [],
   solved: false,
 };
 
@@ -36,6 +38,8 @@ function Canvas() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(EMPTY);
   const [recognized, setRecognized] = useState("");
+  const [history, setHistory] = useState(loadHistory);
+  const [copied, setCopied] = useState(false);
   const drawingRef = useRef(null);
   const requestRef = useRef(null);
 
@@ -77,9 +81,11 @@ function Canvas() {
           latex: data.latex,
           solution: data.solution,
           solutionLatex: data.solution_latex || "",
+          steps: data.steps || [],
           solved: data.solved,
         });
         setRecognized(data.recognized);
+        if (data.solved) setHistory((h) => remember(data.recognized, h));
         if (data.message) setError(data.message);
       })
       .catch((err) => {
@@ -115,8 +121,10 @@ function Canvas() {
           latex: data.latex,
           solution: data.solution,
           solutionLatex: data.solution_latex || "",
+          steps: data.steps || [],
           solved: true,
         }));
+        setHistory((h) => remember(expression, h));
       })
       .catch((err) => {
         if (controller.signal.aborted) return;
@@ -128,6 +136,7 @@ function Canvas() {
           latex: "",
           solution: "",
           solutionLatex: "",
+          steps: [],
           solved: false,
         }));
       })
@@ -160,9 +169,11 @@ function Canvas() {
           latex: data.latex,
           solution: data.solution,
           solutionLatex: data.solution_latex || "",
+          steps: data.steps || [],
           solved: data.solved,
         }));
         setRecognized(data.recognized);
+        if (data.solved) setHistory((h) => remember(data.recognized, h));
         if (data.message) setError(data.message);
       })
       .catch((err) => {
@@ -177,6 +188,31 @@ function Canvas() {
     setResult({ ...EMPTY, recognized: expression });
     setRecognized(expression);
     solveExpr(expression);
+  };
+
+  // a shared link (#q=...) opens with its equation solved, including one
+  // pasted into a tab that already has the app open (only the hash changes)
+  const onExampleRef = useRef(onExample);
+  onExampleRef.current = onExample;
+  useEffect(() => {
+    const openShared = () => {
+      const shared = expressionFromLink();
+      if (shared) onExampleRef.current(shared);
+    };
+    openShared();
+    window.addEventListener("hashchange", openShared);
+    return () => window.removeEventListener("hashchange", openShared);
+  }, []);
+
+  const onShare = async () => {
+    const link = shareLink(result.recognized || recognized);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      window.prompt("Copy this link:", link);
+    }
   };
 
   const onBrushChange = (value) => {
@@ -336,6 +372,30 @@ function Canvas() {
           ))}
         </div>
 
+        {history.length > 0 && (
+          <div className="examples examples--recent">
+            <span className="examples__label">Recent:</span>
+            {history.map((item) => (
+              <button
+                key={item.expression}
+                type="button"
+                className="examples__chip"
+                onClick={() => onExample(item.expression)}
+                disabled={solving}
+              >
+                {item.expression}
+              </button>
+            ))}
+            <button
+              type="button"
+              className="examples__clear"
+              onClick={() => setHistory(clearHistory())}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+
         <div className="upload-row">
           <UploadButton sendImgToServer={sendImgToServer} disabled={loading} />
         </div>
@@ -368,11 +428,14 @@ function Canvas() {
             <ResultPanel
               recognized={recognized}
               onRecognizedChange={setRecognized}
+              onShare={onShare}
+              copied={copied}
               onSolve={onSolveEdited}
               solving={solving}
               latex={result.latex}
               solution={result.solution}
               solutionLatex={result.solutionLatex}
+              steps={result.steps}
               solved={result.solved}
             />
           </>

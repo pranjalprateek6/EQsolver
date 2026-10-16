@@ -296,3 +296,13 @@ def test_predict_glyphs_round_trip_through_rebuild(client):
 ])
 def test_rebuild_rejects_bad_input(client, glyphs):
     assert client.post('/rebuild', json={'characters': glyphs}).status_code == 400
+
+
+def test_solve_returns_steps(client):
+    body = client.post('/solve', json={'expression': '2x+1=5'}).get_json()
+    assert body['steps'][0] == {'title': 'Start with the equation', 'latex': '2 x + 1 = 5'}
+    assert body['steps'][-1]['latex'] == 'x = 2'
+
+
+def test_arithmetic_has_no_steps(client):
+    assert client.post('/solve', json={'expression': '8+3'}).get_json()['steps'] == []

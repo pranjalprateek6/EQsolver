@@ -47,4 +47,20 @@ describe("ResultPanel", () => {
     render(<ResultPanel {...props} solved={false} solution="" />);
     expect(screen.getByText(/could not solve/i)).toBeInTheDocument();
   });
+
+  it("offers the working when there are steps", () => {
+    const steps = [
+      { title: "Start with the equation", latex: "2 x + 1 = 5" },
+      { title: "Move the x terms to one side and the numbers to the other", latex: "2 x = 4" },
+      { title: "Divide both sides by 2", latex: "x = 2" },
+    ];
+    render(<ResultPanel {...props} steps={steps} />);
+    expect(screen.getByText("Show steps (2)")).toBeInTheDocument();
+    expect(screen.getByText("Divide both sides by 2")).toBeInTheDocument();
+  });
+
+  it("hides the working when there is nothing to explain", () => {
+    render(<ResultPanel {...props} steps={[]} />);
+    expect(screen.queryByText(/show steps/i)).not.toBeInTheDocument();
+  });
 });

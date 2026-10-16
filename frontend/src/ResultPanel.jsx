@@ -24,7 +24,10 @@ function ResultPanel({
   latex,
   solution,
   solutionLatex,
+  steps = [],
   solved,
+  onShare,
+  copied,
 }) {
   const onKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -75,7 +78,14 @@ function ResultPanel({
       </div>
 
       <div className="result__solution" aria-live="polite">
-        <span className="result__label">Solution</span>
+        <span className="result__solution-head">
+          <span className="result__label">Solution</span>
+          {solved && onShare && (
+            <button type="button" className="result__share" onClick={onShare}>
+              {copied ? "Link copied" : "Copy link"}
+            </button>
+          )}
+        </span>
         {solved && solutionLatex ? (
           <MathView
             latex={solutionLatex}
@@ -88,6 +98,20 @@ function ResultPanel({
           </span>
         )}
       </div>
+
+      {solved && steps.length > 1 && (
+        <details className="steps">
+          <summary className="steps__toggle">Show steps ({steps.length - 1})</summary>
+          <ol className="steps__list">
+            {steps.map((step, index) => (
+              <li key={index} className="steps__item">
+                <span className="steps__title">{step.title}</span>
+                <MathView latex={step.latex} className="steps__math" />
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
     </div>
   );
 }
