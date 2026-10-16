@@ -85,6 +85,32 @@ jobs:
             -d '{"expression":"x**(10**4)+x+1=0"}')
           test "$code" = "422"
           curl -sf http://localhost:5000/healthz | grep -q '"ok"'
+      # Playwright e2e tests drive the real UI in Chromium against the same
+      # container: drawing, glyph correction, steps, share links, check my work
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install e2e dependencies
+        working-directory: frontend
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: End-to-end tests
+        working-directory: frontend
+        env:
+          E2E_BASE_URL: http://localhost:5000
+        run: npm run e2e
+      - name: Upload e2e report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          retention-days: 14
       - name: Container logs
         if: always()
         run: docker logs eqsolver

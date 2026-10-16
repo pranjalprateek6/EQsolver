@@ -11,3 +11,5 @@ backend/model.h5
 backend/model_v2.h5
 backend/mapper_v2.csv
 backend/requirements-dev.txt
+frontend/test-results
+frontend/playwright-report

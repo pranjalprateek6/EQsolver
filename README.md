@@ -119,6 +119,26 @@ cd backend && pytest
 cd frontend && npm test
 ```
 
+End-to-end tests (`frontend/e2e/`, Playwright) drive the real UI in Chromium
+against a running production build: drawing an equation with pointer events
+and evaluating it, correcting a glyph from the picker, an example with its
+steps, a `#q=` share link, and a check-my-work chain with a wrong line. In CI
+they run against the Docker image. Locally, serve the production build on any
+free port (5000, 3000 and 5055 are often taken; 5192 below is arbitrary) and
+point `E2E_BASE_URL` at it:
+
+```
+docker build -t eqsolver . && docker run --rm -p 5192:5000 eqsolver
+cd frontend && npx playwright install chromium   # once
+E2E_BASE_URL=http://localhost:5192 npm run e2e
+```
+
+Without Docker, build the frontend into the backend and run Flask instead of
+the first line: `cd frontend && npm run build && cp -r dist ../backend/static`,
+then `cd backend && PORT=5192 python app.py` (PowerShell: `$env:PORT=5192;
+python app.py`). On failure, `npx playwright show-trace test-results/.../trace.zip`
+replays the run.
+
 Both suites also run in CI on every push, along with a job that builds the
 production Docker image and smoke-tests it (health check, a solve, a hostile
 input, and a runaway solve that must be cut off).

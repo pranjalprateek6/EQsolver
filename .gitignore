@@ -21,3 +21,7 @@ backend/**/mapper_v*.csv
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# playwright
+frontend/test-results/
+frontend/playwright-report/
