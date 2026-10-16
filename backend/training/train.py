@@ -9,6 +9,7 @@ Usage:
     python training/train.py --data-dir data/extracted_images --epochs 15
     python training/train.py --smoke        # tiny synthetic run to prove the pipeline
 """
+
 import argparse
 import csv
 import os
@@ -26,13 +27,27 @@ from preprocess import TARGET, to_model_input  # noqa: E402
 # point, and 'forward_slash' has too few samples to be worth a class (division
 # is covered by '÷' and by fraction bars in the spatial parser).
 CLASS_MAP = {
-    '0': '0', '1': '1', '2': '2', '3': '3', '4': '4',
-    '5': '5', '6': '6', '7': '7', '8': '8', '9': '9',
-    '+': '+', '-': '-', '=': '=',
-    'times': '×', 'div': '÷',
-    '(': '(', ')': ')',
+    '0': '0',
+    '1': '1',
+    '2': '2',
+    '3': '3',
+    '4': '4',
+    '5': '5',
+    '6': '6',
+    '7': '7',
+    '8': '8',
+    '9': '9',
+    '+': '+',
+    '-': '-',
+    '=': '=',
+    'times': '×',
+    'div': '÷',
+    '(': '(',
+    ')': ')',
     'sqrt': '√',
-    'X': 'x', 'y': 'y', 'z': 'z',
+    'X': 'x',
+    'y': 'y',
+    'z': 'z',
 }
 
 
@@ -67,26 +82,28 @@ def load_dataset(data_dir, per_class_limit=None):
 
 def build_model(num_classes):
     from tf_keras import layers, models
-    model = models.Sequential([
-        layers.Input((TARGET, TARGET, 1)),
-        # Note: rotation/translation/zoom augmentation was tried and dropped.
-        # preprocess.py already centres and size-normalizes every glyph, so
-        # those augmentations added no signal and cost ~1% accuracy (rotation
-        # also worsened the x vs × confusion). The plain model trains best.
-        layers.Conv2D(32, 3, activation='relu', padding='same'),
-        layers.Conv2D(32, 3, activation='relu', padding='same'),
-        layers.MaxPooling2D(),
-        layers.Dropout(0.25),
-        layers.Conv2D(64, 3, activation='relu', padding='same'),
-        layers.MaxPooling2D(),
-        layers.Dropout(0.25),
-        layers.Flatten(),
-        layers.Dense(128, activation='relu'),
-        layers.Dropout(0.5),
-        layers.Dense(num_classes, activation='softmax'),
-    ])
-    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy',
-                  metrics=['accuracy'])
+
+    model = models.Sequential(
+        [
+            layers.Input((TARGET, TARGET, 1)),
+            # Note: rotation/translation/zoom augmentation was tried and dropped.
+            # preprocess.py already centres and size-normalizes every glyph, so
+            # those augmentations added no signal and cost ~1% accuracy (rotation
+            # also worsened the x vs × confusion). The plain model trains best.
+            layers.Conv2D(32, 3, activation='relu', padding='same'),
+            layers.Conv2D(32, 3, activation='relu', padding='same'),
+            layers.MaxPooling2D(),
+            layers.Dropout(0.25),
+            layers.Conv2D(64, 3, activation='relu', padding='same'),
+            layers.MaxPooling2D(),
+            layers.Dropout(0.25),
+            layers.Flatten(),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.5),
+            layers.Dense(num_classes, activation='softmax'),
+        ]
+    )
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     return model
 
 
@@ -147,8 +164,15 @@ def main():
     class_weight = {i: total / (len(symbols) * c) for i, c in enumerate(counts) if c}
 
     model = build_model(len(symbols))
-    model.fit(x[:split], train_y, validation_data=(x[split:], y[split:]),
-              epochs=epochs, batch_size=128, verbose=2, class_weight=class_weight)
+    model.fit(
+        x[:split],
+        train_y,
+        validation_data=(x[split:], y[split:]),
+        epochs=epochs,
+        batch_size=128,
+        verbose=2,
+        class_weight=class_weight,
+    )
 
     model.save(args.out_model)
     write_mapper(symbols, args.out_mapper)

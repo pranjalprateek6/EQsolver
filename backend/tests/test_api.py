@@ -114,6 +114,7 @@ def test_predict_returns_solution_latex(client):
 
 def test_assets_are_cached_forever_and_index_is_revalidated(client, tmp_path, monkeypatch):
     import app as app_module
+
     (tmp_path / 'assets').mkdir()
     (tmp_path / 'assets' / 'index-abc123.js').write_text('console.log(1)')
     (tmp_path / 'index.html').write_text('<div id="root"></div>')
@@ -126,8 +127,9 @@ def test_assets_are_cached_forever_and_index_is_revalidated(client, tmp_path, mo
 
 
 def test_json_is_compressed_when_asked(client):
-    response = client.post('/solve', json={'expression': '1+' * 140 + '1'},
-                           headers={'Accept-Encoding': 'gzip'})
+    response = client.post(
+        '/solve', json={'expression': '1+' * 140 + '1'}, headers={'Accept-Encoding': 'gzip'}
+    )
     assert response.headers.get('Content-Encoding') == 'gzip'
 
 
@@ -143,11 +145,15 @@ def test_solve_implicit_multiplication(client):
 
 # --- hardening -----------------------------------------------------------
 
-@pytest.mark.parametrize('expression', [
-    "__import__('os').system('echo pwned')",
-    "x.__class__.__mro__",
-    '9**9**9**9',
-])
+
+@pytest.mark.parametrize(
+    'expression',
+    [
+        "__import__('os').system('echo pwned')",
+        "x.__class__.__mro__",
+        '9**9**9**9',
+    ],
+)
 def test_solve_refuses_hostile_input(client, expression):
     response = client.post('/solve', json={'expression': expression})
     assert response.status_code == 422
@@ -158,6 +164,7 @@ def test_solve_timeout_is_422(client, monkeypatch):
 
     def too_slow(expression):
         raise sandbox.SolveTimeout()
+
     monkeypatch.setattr(sandbox, 'solve', too_slow)
     response = client.post('/solve', json={'expression': 'x**2=4'})
     assert response.status_code == 422
@@ -169,6 +176,7 @@ def test_predict_timeout_reports_unsolved(client, monkeypatch):
 
     def too_slow(expression):
         raise sandbox.SolveTimeout()
+
     monkeypatch.setattr(sandbox, 'solve', too_slow)
     image = (FIXTURES / 'eight_plus_three.png').read_bytes()
     body = client.post('/predict', json={'image': encode_image(image)}).get_json()
@@ -244,11 +252,9 @@ def test_healthz(client):
 
 
 def test_cors_only_for_allowed_origins(client):
-    allowed = client.post('/solve', json={'expression': '1+1'},
-                          headers={'Origin': 'http://localhost:3000'})
+    allowed = client.post('/solve', json={'expression': '1+1'}, headers={'Origin': 'http://localhost:3000'})
     assert allowed.headers.get('Access-Control-Allow-Origin') == 'http://localhost:3000'
-    other = client.post('/solve', json={'expression': '1+1'},
-                        headers={'Origin': 'https://evil.example'})
+    other = client.post('/solve', json={'expression': '1+1'}, headers={'Origin': 'https://evil.example'})
     assert 'Access-Control-Allow-Origin' not in other.headers
 
 
@@ -259,6 +265,7 @@ def test_unknown_route_is_json_404(client):
 
 
 # --- tap-to-correct ------------------------------------------------------
+
 
 def _glyph(char, x, y=100, w=28, h=40):
     return {'char': char, 'x': x, 'y': y, 'w': w, 'h': h}
@@ -286,14 +293,20 @@ def test_predict_glyphs_round_trip_through_rebuild(client):
     assert rebuilt['recognized'] == predicted['recognized']
 
 
-@pytest.mark.parametrize('glyphs', [
-    None, [], 'abc', [{'char': 'a', 'x': 0, 'y': 0, 'w': 1, 'h': 1}],
-    [{'char': '__import__', 'x': 0, 'y': 0, 'w': 1, 'h': 1}],
-    [{'char': '1', 'x': '0', 'y': 0, 'w': 1, 'h': 1}],
-    [{'char': '1', 'x': -5, 'y': 0, 'w': 1, 'h': 1}],
-    [{'char': '1', 'x': True, 'y': 0, 'w': 1, 'h': 1}],
-    [{'char': '1', 'x': 0, 'y': 0, 'w': 1, 'h': 1}] * 101,
-])
+@pytest.mark.parametrize(
+    'glyphs',
+    [
+        None,
+        [],
+        'abc',
+        [{'char': 'a', 'x': 0, 'y': 0, 'w': 1, 'h': 1}],
+        [{'char': '__import__', 'x': 0, 'y': 0, 'w': 1, 'h': 1}],
+        [{'char': '1', 'x': '0', 'y': 0, 'w': 1, 'h': 1}],
+        [{'char': '1', 'x': -5, 'y': 0, 'w': 1, 'h': 1}],
+        [{'char': '1', 'x': True, 'y': 0, 'w': 1, 'h': 1}],
+        [{'char': '1', 'x': 0, 'y': 0, 'w': 1, 'h': 1}] * 101,
+    ],
+)
 def test_rebuild_rejects_bad_input(client, glyphs):
     assert client.post('/rebuild', json={'characters': glyphs}).status_code == 400
 
@@ -309,6 +322,7 @@ def test_arithmetic_has_no_steps(client):
 
 
 # --- /check: checking a student's working line by line ---
+
 
 def test_check_typed_lines(client):
     response = client.post('/check', json={'lines': ['2x+3=11', '2x=11+3', 'x=7']})
@@ -332,15 +346,18 @@ def test_check_reveal(client):
     assert body['answer_latex'] == 'x = 4'
 
 
-@pytest.mark.parametrize('payload', [
-    {},
-    {'lines': []},
-    {'lines': 'x=1'},
-    {'lines': ['x=1', 5]},
-    {'lines': ['x=1', '   ']},
-    {'lines': ['x=1'] * 13},
-    {'lines': ['1+' * 200 + '1']},
-])
+@pytest.mark.parametrize(
+    'payload',
+    [
+        {},
+        {'lines': []},
+        {'lines': 'x=1'},
+        {'lines': ['x=1', 5]},
+        {'lines': ['x=1', '   ']},
+        {'lines': ['x=1'] * 13},
+        {'lines': ['1+' * 200 + '1']},
+    ],
+)
 def test_check_rejects_bad_input(client, payload):
     assert client.post('/check', json=payload).status_code == 400
 
@@ -355,6 +372,7 @@ def test_check_timeout_is_422(client, monkeypatch):
 
     def too_slow(lines, reveal=False):
         raise sandbox.SolveTimeout()
+
     monkeypatch.setattr(sandbox, 'check', too_slow)
     response = client.post('/check', json={'lines': ['x=1', 'x=1']})
     assert response.status_code == 422
@@ -374,8 +392,9 @@ def _stacked(image_bytes, copies=2, gap=None):
 
 
 def test_check_handwritten_lines(client):
-    single = client.post('/predict', json={
-        'image': encode_image((FIXTURES / 'eight_plus_three.png').read_bytes())}).get_json()
+    single = client.post(
+        '/predict', json={'image': encode_image((FIXTURES / 'eight_plus_three.png').read_bytes())}
+    ).get_json()
     image = _stacked((FIXTURES / 'eight_plus_three.png').read_bytes())
     response = client.post('/check', json={'image': encode_image(image)})
     assert response.status_code == 200

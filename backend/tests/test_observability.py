@@ -28,15 +28,13 @@ def test_request_id_is_generated(client):
 
 
 def test_request_id_is_echoed(client):
-    response = client.post('/solve', json={'expression': '1+1'},
-                           headers={'X-Request-ID': 'abc-123'})
+    response = client.post('/solve', json={'expression': '1+1'}, headers={'X-Request-ID': 'abc-123'})
     assert response.headers['X-Request-ID'] == 'abc-123'
 
 
 def test_unsafe_request_id_is_replaced(client):
     unsafe = '<script>' + 'x' * 200
-    response = client.post('/solve', json={'expression': '1+1'},
-                           headers={'X-Request-ID': unsafe})
+    response = client.post('/solve', json={'expression': '1+1'}, headers={'X-Request-ID': unsafe})
     assert len(response.headers['X-Request-ID']) == 32
 
 
@@ -81,17 +79,29 @@ def test_sentry_is_off_without_dsn(monkeypatch):
 
 def test_sentry_scrubber_drops_bodies_and_images():
     event = {
-        'request': {'url': 'https://x/predict', 'method': 'POST',
-                    'data': {'image': 'iVBORw0KGgo'}, 'headers': {'Cookie': 'c'}},
+        'request': {
+            'url': 'https://x/predict',
+            'method': 'POST',
+            'data': {'image': 'iVBORw0KGgo'},
+            'headers': {'Cookie': 'c'},
+        },
         'user': {'ip_address': '1.2.3.4'},
-        'extra': {'image': 'abc', 'expression': 'x+1=2',
-                  'tile': 'data:image/png;base64,iVBORw0KGgo', 'blob': 'A' * 5000},
+        'extra': {
+            'image': 'abc',
+            'expression': 'x+1=2',
+            'tile': 'data:image/png;base64,iVBORw0KGgo',
+            'blob': 'A' * 5000,
+        },
     }
     scrubbed = observability._scrub_event(event, {})
     assert scrubbed['request'] == {'url': 'https://x/predict', 'method': 'POST'}
     assert 'user' not in scrubbed
-    assert scrubbed['extra'] == {'image': '[removed]', 'expression': 'x+1=2',
-                                 'tile': '[removed]', 'blob': '[removed]'}
+    assert scrubbed['extra'] == {
+        'image': '[removed]',
+        'expression': 'x+1=2',
+        'tile': '[removed]',
+        'blob': '[removed]',
+    }
 
 
 def test_sentry_event_never_carries_the_image(client, monkeypatch):

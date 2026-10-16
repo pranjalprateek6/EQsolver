@@ -1,4 +1,5 @@
 """Preprocessing tests: aspect ratio is preserved and glyphs are centred."""
+
 import numpy as np
 
 from preprocess import TARGET, to_model_input

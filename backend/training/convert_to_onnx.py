@@ -4,6 +4,7 @@ can run inference with the lightweight onnxruntime instead of TensorFlow.
 Run after training:
     python training/convert_to_onnx.py
 """
+
 import os
 import sys
 
@@ -24,6 +25,7 @@ def main():
 
     # verify the ONNX model gives the same predictions as the Keras model
     import onnxruntime as ort
+
     rng = np.random.RandomState(0)
     sample = rng.rand(32, 28, 28, 1).astype(np.float32)
     keras_pred = np.argmax(model.predict(sample, verbose=0), axis=1)

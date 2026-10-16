@@ -11,6 +11,7 @@ SymPy, so replacing a killed helper takes milliseconds, and each helper gets
 an address-space cap so a runaway job hits MemoryError instead of the host's
 OOM killer. On Windows (local development) they are spawned and uncapped.
 """
+
 import logging
 import multiprocessing
 import os
@@ -48,6 +49,7 @@ class SolverError(Exception):
 def _cap_memory(headroom_mb):
     try:
         import resource
+
         with open('/proc/self/statm') as f:
             pages = int(f.read().split()[0])
         current = pages * os.sysconf('SC_PAGE_SIZE')
@@ -61,6 +63,7 @@ def _helper_main(conn, headroom_mb):
     # imported before the cap so startup never hits it
     import calculator
     import checker
+
     jobs = {'solve': calculator.solve_job, 'check': checker.check_job}
     _cap_memory(headroom_mb)
     conn.send('ready')
@@ -89,8 +92,7 @@ def _context():
 class _Helper:
     def __init__(self, ctx):
         self.conn, child = ctx.Pipe()
-        self.process = ctx.Process(target=_helper_main, args=(child, MEMORY_HEADROOM_MB),
-                                   daemon=True)
+        self.process = ctx.Process(target=_helper_main, args=(child, MEMORY_HEADROOM_MB), daemon=True)
         self.process.start()
         child.close()
         self.ready = False
@@ -155,8 +157,13 @@ class SolverPool:
             log.warning('solver failed on %r: %s', expression, result['error'])
             if kind == 'check':
                 raise SolverError(result['error'])
-            return {'expression': expression, 'solution': None,
-                    'solution_latex': '', 'latex': '', 'steps': []}
+            return {
+                'expression': expression,
+                'solution': None,
+                'solution_latex': '',
+                'latex': '',
+                'steps': [],
+            }
         return result
 
 
@@ -184,5 +191,4 @@ def solve(expression):
 def check(lines, reveal=False):
     """Check lines of working in the sandbox (see checker.check_lines).
     Raises SolveTimeout, SolverBusy or SolverError."""
-    return get_pool().run({'lines': list(lines), 'reveal': bool(reveal)},
-                          timeout=CHECK_TIMEOUT, kind='check')
+    return get_pool().run({'lines': list(lines), 'reveal': bool(reveal)}, timeout=CHECK_TIMEOUT, kind='check')

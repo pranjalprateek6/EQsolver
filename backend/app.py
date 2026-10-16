@@ -44,8 +44,11 @@ if PROXY_COUNT:
 # The production build serves the frontend from this same origin, so CORS is
 # only needed for the Vite dev server. Add origins explicitly when hosting the
 # frontend elsewhere.
-CORS_ORIGINS = [o.strip() for o in os.environ.get(
-    'CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',') if o.strip()]
+CORS_ORIGINS = [
+    o.strip()
+    for o in os.environ.get('CORS_ORIGINS', 'http://localhost:3000,http://127.0.0.1:3000').split(',')
+    if o.strip()
+]
 CORS(app, origins=CORS_ORIGINS, expose_headers=['X-Request-ID'])
 
 # gzip/brotli for the JS/CSS bundle and JSON responses
@@ -164,9 +167,16 @@ def _read_image(read):
 
 def _characters(tokens):
     return [
-        {'char': t['char'], 'confidence': t['confidence'], 'image': t['image'],
-         'alternatives': [{'char': c, 'confidence': p} for c, p in t.get('alternatives', [])],
-         'x': t['x'], 'y': t['y'], 'w': t['w'], 'h': t['h']}
+        {
+            'char': t['char'],
+            'confidence': t['confidence'],
+            'image': t['image'],
+            'alternatives': [{'char': c, 'confidence': p} for c, p in t.get('alternatives', [])],
+            'x': t['x'],
+            'y': t['y'],
+            'w': t['w'],
+            'h': t['h'],
+        }
         for t in tokens
     ]
 
@@ -211,9 +221,14 @@ MAX_COORD = 100_000
 
 
 def _valid_glyph(t):
-    return (isinstance(t, dict) and t.get('char') in ALLOWED_GLYPHS
-            and all(isinstance(t.get(k), int) and not isinstance(t.get(k), bool)
-                    and 0 <= t[k] <= MAX_COORD for k in ('x', 'y', 'w', 'h')))
+    return (
+        isinstance(t, dict)
+        and t.get('char') in ALLOWED_GLYPHS
+        and all(
+            isinstance(t.get(k), int) and not isinstance(t.get(k), bool) and 0 <= t[k] <= MAX_COORD
+            for k in ('x', 'y', 'w', 'h')
+        )
+    )
 
 
 @app.route('/rebuild', methods=['POST'])
@@ -229,8 +244,7 @@ def rebuild():
         return _error(f"too many characters (max {MAX_GLYPHS})", 400)
     if not all(_valid_glyph(t) for t in glyphs):
         return _error("each character needs a known 'char' and integer 'x', 'y', 'w', 'h'", 400)
-    tokens = [{'char': t['char'], 'x': t['x'], 'y': t['y'], 'w': t['w'], 'h': t['h']}
-              for t in glyphs]
+    tokens = [{'char': t['char'], 'x': t['x'], 'y': t['y'], 'w': t['w'], 'h': t['h']} for t in glyphs]
     return jsonify(_read_and_solve(tokens))
 
 
@@ -313,5 +327,6 @@ def check():
 
 
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', '5000')),
-            debug=os.environ.get('FLASK_DEBUG') == '1')
+    app.run(
+        host='0.0.0.0', port=int(os.environ.get('PORT', '5000')), debug=os.environ.get('FLASK_DEBUG') == '1'
+    )

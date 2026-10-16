@@ -11,6 +11,7 @@ A token is a dict: {'char': str, 'x': int, 'y': int, 'w': int, 'h': int},
 where (x, y) is the top-left of its bounding box in image coordinates
 (y grows downward).
 """
+
 from statistics import median
 
 # A horizontal bar at least this many times wider than the median symbol
@@ -80,9 +81,14 @@ def _collect_radicand(sqrt_tok, tokens, consumed, median_h):
     band_top = sqrt_tok['y'] - 0.3 * median_h
     band_bottom = _bottom(sqrt_tok) + 0.3 * median_h
     candidates = sorted(
-        (t for t in tokens
-         if id(t) not in consumed and t is not sqrt_tok and _cx(t) > sqrt_tok['x']
-         and band_top <= _cy(t) <= band_bottom),
+        (
+            t
+            for t in tokens
+            if id(t) not in consumed
+            and t is not sqrt_tok
+            and _cx(t) > sqrt_tok['x']
+            and band_top <= _cy(t) <= band_bottom
+        ),
         key=lambda t: t['x'],
     )
     radicand = []
@@ -102,14 +108,19 @@ def _resolve_structures(tokens, median_h):
     items = []
 
     # widest bars first so the outermost fraction wins when they nest
-    for bar in sorted((t for t in tokens if _is_frac_bar(t, median_h)),
-                      key=lambda t: -t['w']):
+    for bar in sorted((t for t in tokens if _is_frac_bar(t, median_h)), key=lambda t: -t['w']):
         if id(bar) in consumed:
             continue
-        above = [t for t in tokens if id(t) not in consumed and t is not bar
-                 and _overlaps_x(t, bar) and _cy(t) < bar['y']]
-        below = [t for t in tokens if id(t) not in consumed and t is not bar
-                 and _overlaps_x(t, bar) and _cy(t) > _bottom(bar)]
+        above = [
+            t
+            for t in tokens
+            if id(t) not in consumed and t is not bar and _overlaps_x(t, bar) and _cy(t) < bar['y']
+        ]
+        below = [
+            t
+            for t in tokens
+            if id(t) not in consumed and t is not bar and _overlaps_x(t, bar) and _cy(t) > _bottom(bar)
+        ]
         if not above or not below:
             continue  # a lone long dash is just a minus, not a fraction
         for t in above + below:

@@ -20,6 +20,7 @@ Size limits keep a single request from tying up the server: the input length,
 token count and nesting depth are capped, and a numeric power whose result
 would be enormous (``9**9**9``) is rejected before SymPy computes it.
 """
+
 import re
 
 import sympy
@@ -35,12 +36,15 @@ MAX_RESULT_BITS = 33_000
 FUNCTIONS = {'sqrt'}
 CONSTANTS = {'pi': sympy.pi}
 
-_TOKEN_RE = re.compile(r"""
+_TOKEN_RE = re.compile(
+    r"""
     (?P<number>\d+(?:\.\d+)?|\.\d+)
   | (?P<name>[a-z]+)
   | (?P<op>\*\*|[-+*/^=()])
   | (?P<space>\s+)
-""", re.VERBOSE)
+""",
+    re.VERBOSE,
+)
 
 
 class ParseError(ValueError):
@@ -63,8 +67,7 @@ def tokenize(text):
             continue
         if kind == 'number' and len(value) > MAX_NUMBER_DIGITS:
             raise ParseError('number is too long')
-        if kind == 'name' and value not in FUNCTIONS and value not in CONSTANTS \
-                and len(value) != 1:
+        if kind == 'name' and value not in FUNCTIONS and value not in CONSTANTS and len(value) != 1:
             raise ParseError(f'unknown name {value!r}')
         tokens.append((kind, value))
         if len(tokens) > MAX_TOKENS:

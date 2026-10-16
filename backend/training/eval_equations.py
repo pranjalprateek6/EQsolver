@@ -27,6 +27,7 @@ Usage (from backend/):
     python training/eval_equations.py --n 400 --decoder greedy   # compare
     python training/eval_equations.py --n 150 --lines 3          # pages of working
 """
+
 import argparse
 import io
 import os
@@ -46,7 +47,7 @@ from train import CLASS_MAP  # noqa: E402
 
 DEFAULT_DATA = os.path.join(ROOT, 'training', 'data', 'extracted_images')
 TRAIN_CAP = 6000  # --per-class-limit the shipped model was trained with
-GLYPH_H = 72      # height of a full-size glyph in the rendered equation
+GLYPH_H = 72  # height of a full-size glyph in the rendered equation
 
 # symbol as written in an equation -> dataset folder
 SYMBOL_FOLDER = {v: k for k, v in CLASS_MAP.items()}
@@ -79,7 +80,7 @@ def ink_crop(path):
     gray = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
     _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     ys, xs = np.where(mask > 0)
-    return mask[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
+    return mask[ys.min() : ys.max() + 1, xs.min() : xs.max() + 1]
 
 
 def scaled(mask, height=None, width=None):
@@ -112,6 +113,7 @@ def fitted(mask, height, max_aspect=1.3):
 #   ('sqrt', [items])        a radical over its radicand
 # plus a ground-truth expression in safe_parse syntax and its true solution.
 
+
 def _num(rng, lo=1, hi=99):
     return str(rng.randint(lo, hi))
 
@@ -122,8 +124,9 @@ def _glyphs(text):
 
 def make_equation(rng):
     var = rng.choice('xyz')
-    kind = rng.choice(['arith2', 'arith3', 'paren', 'linear', 'linear2',
-                       'square', 'quadratic', 'fraction', 'sqrt'])
+    kind = rng.choice(
+        ['arith2', 'arith3', 'paren', 'linear', 'linear2', 'square', 'quadratic', 'fraction', 'sqrt']
+    )
     if kind == 'arith2':
         a, b = _num(rng), _num(rng)
         op = rng.choice('+-×÷')
@@ -158,6 +161,7 @@ def make_equation(rng):
 
 
 # --- rendering ------------------------------------------------------------
+
 
 class Renderer:
     def __init__(self, pools, rng):
@@ -200,8 +204,9 @@ class Renderer:
                 num, wn = self._row(item[1], int(height * 0.8))
                 den, wd = self._row(item[2], int(height * 0.8))
                 width = max(wn, wd) + 16
-                bar = scaled(ink_crop(self.rng.choice(self.pools['-'])),
-                             height=max(4, int(height * 0.07)), width=width)
+                bar = scaled(
+                    ink_crop(self.rng.choice(self.pools['-'])), height=max(4, int(height * 0.07)), width=width
+                )
                 self.drawn['-'] += 1
                 placed.append((bar, x, 0))
                 off = int(height * 0.55)
@@ -229,8 +234,8 @@ class Renderer:
         canvas = np.zeros((bottom - top + 2 * pad, width + 2 * pad), np.uint8)
         for m, x, cy in placed:
             y0 = cy - m.shape[0] // 2 - top + pad
-            region = canvas[y0:y0 + m.shape[0], x + pad:x + pad + m.shape[1]]
-            np.maximum(region, m[:region.shape[0], :region.shape[1]], out=region)
+            region = canvas[y0 : y0 + m.shape[0], x + pad : x + pad + m.shape[1]]
+            np.maximum(region, m[: region.shape[0], : region.shape[1]], out=region)
         # slightly thicker strokes, like a pen on the canvas
         canvas = cv2.dilate(canvas, np.ones((2, 2), np.uint8))
         buf = io.BytesIO()
@@ -267,14 +272,20 @@ def main():
     parser.add_argument('--data-dir', default=DEFAULT_DATA)
     parser.add_argument('--n', type=int, default=400)
     parser.add_argument('--seed', type=int, default=7)
-    parser.add_argument('--decoder', choices=['greedy', 'context'], default=None,
-                        help='override the decoder (default: the app default)')
-    parser.add_argument('--no-merge', action='store_true',
-                        help='disable stroke merging in the segmenter (old behaviour)')
+    parser.add_argument(
+        '--decoder',
+        choices=['greedy', 'context'],
+        default=None,
+        help='override the decoder (default: the app default)',
+    )
+    parser.add_argument(
+        '--no-merge', action='store_true', help='disable stroke merging in the segmenter (old behaviour)'
+    )
     parser.add_argument('--show-errors', type=int, default=0)
     parser.add_argument('--save-dir', default=None, help='write the rendered images here')
-    parser.add_argument('--lines', type=int, default=1,
-                        help='equations per page, read with the line splitter')
+    parser.add_argument(
+        '--lines', type=int, default=1, help='equations per page, read with the line splitter'
+    )
     args = parser.parse_args()
 
     import main as pipeline
@@ -286,6 +297,7 @@ def main():
         os.environ['EQSOLVER_DECODER'] = args.decoder
     if args.no_merge:
         import segmentor
+
         segmentor._merge_strokes = lambda rects: rects
         segmentor._merge_division_signs = lambda rects: rects
 
@@ -338,9 +350,11 @@ def main():
     print(f'SER      {sym_err / max(1, sym_len):6.1%}   symbol error rate')
     seen = sum(renderer.drawn[s] for s in leaked)
     total = sum(renderer.drawn.values())
-    print(f'glyphs drawn: {total}, of which {seen} ({seen / max(1, total):.0%}) from folders '
-          f'not held out from training ({", ".join(sorted(leaked))})')
-    for truth, read in errors[:args.show_errors]:
+    print(
+        f'glyphs drawn: {total}, of which {seen} ({seen / max(1, total):.0%}) from folders '
+        f'not held out from training ({", ".join(sorted(leaked))})'
+    )
+    for truth, read in errors[: args.show_errors]:
         print(f'  want {truth!r:22} read {read!r}')
 
 
@@ -351,14 +365,14 @@ def stack_lines(pngs, rng):
     for png in pngs:
         ink = 255 - np.array(Image.open(io.BytesIO(png)).convert('L'))
         rows = np.where(ink.any(axis=1))[0]
-        lines.append(ink[rows[0]:rows[-1] + 1])
+        lines.append(ink[rows[0] : rows[-1] + 1])
     pad = 40
     gaps = [rng.randint(int(0.4 * GLYPH_H), int(1.2 * GLYPH_H)) for _ in lines[1:]]
     height = sum(line.shape[0] for line in lines) + sum(gaps) + 2 * pad
     page = np.zeros((height, max(line.shape[1] for line in lines)), np.uint8)
     y = pad
     for line, gap in zip(lines, gaps + [0], strict=True):
-        page[y:y + line.shape[0], :line.shape[1]] = line
+        page[y : y + line.shape[0], : line.shape[1]] = line
         y += line.shape[0] + gap
     buf = io.BytesIO()
     Image.fromarray(255 - page).save(buf, 'PNG')
@@ -398,11 +412,13 @@ def eval_pages(args, renderer, rng):
             if not exact:
                 errors.append((truth, read))
 
-    print(f'pages: {totals["pages"]} of {args.lines} lines   '
-          f'decoder: {args.decoder or os.environ.get("EQSOLVER_DECODER", "default")}')
+    print(
+        f'pages: {totals["pages"]} of {args.lines} lines   '
+        f'decoder: {args.decoder or os.environ.get("EQSOLVER_DECODER", "default")}'
+    )
     print(f'LineRate {totals["split"] / totals["pages"]:6.1%}   right number of lines')
     print(f'ExpRate  {totals["exact"] / totals["lines"]:6.1%}   exact expression, per line')
-    for truth, read in errors[:args.show_errors]:
+    for truth, read in errors[: args.show_errors]:
         print(f'  want {truth!r:22} read {read!r}')
 
 
