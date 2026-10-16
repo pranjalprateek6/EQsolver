@@ -602,6 +602,211 @@ button.glyph:disabled {
   color: var(--muted);
 }
 
+/* mode switch (Solve / Check my work) and the Write / Type switch */
+.mode-switch,
+.input-switch {
+  display: inline-flex;
+  border: 2px solid var(--line);
+  box-shadow: var(--shadow-btn);
+  background: #fff;
+}
+
+.mode-switch {
+  margin-top: 16px;
+}
+
+.input-switch {
+  margin-bottom: 14px;
+  box-shadow: none;
+}
+
+.mode-switch__option,
+.input-switch__option {
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  padding: 6px 16px;
+  cursor: pointer;
+}
+
+.input-switch__option {
+  padding: 3px 14px;
+  font-size: 0.85rem;
+}
+
+.mode-switch__option + .mode-switch__option,
+.input-switch__option + .input-switch__option {
+  border-left: 2px solid var(--line);
+}
+
+.mode-switch__option.is-active,
+.input-switch__option.is-active {
+  background: var(--ink);
+  color: #fff;
+}
+
+.mode-switch__option:focus-visible,
+.input-switch__option:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* one ruled line per equation of working; decoration only, not exported */
+.drawing--ruled {
+  background:
+    linear-gradient(to top, #d9dde5 1px, transparent 1px) 0 0 / 100% calc(100% / var(--rules)),
+    #fff;
+}
+
+.typed-work__input {
+  margin-top: 6px;
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  line-height: 1.7;
+  resize: vertical;
+}
+
+/* check results */
+.check__summary {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border: 2px solid var(--line);
+  font-weight: 700;
+}
+
+.check__summary--ok {
+  border-color: var(--good);
+  background: #f0fdf4;
+}
+
+.check__summary--bad {
+  border-color: var(--bad);
+  background: #fef2f2;
+}
+
+.check__summary--unknown {
+  border-color: var(--warn);
+  background: #fffbeb;
+}
+
+.check__lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 2px solid var(--line);
+  background: #fff;
+}
+
+.check__line {
+  padding: 8px 12px;
+}
+
+.check__line + .check__line {
+  border-top: 1px solid #e5e7eb;
+}
+
+.check__line--first {
+  background: #fef2f2;
+  box-shadow: inset 4px 0 0 var(--bad);
+}
+
+.check__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.check__num {
+  color: var(--muted);
+  font-size: 0.8rem;
+  width: 1.4em;
+  text-align: right;
+  flex: none;
+}
+
+.check__mark {
+  flex: none;
+  width: 1.6em;
+  height: 1.6em;
+  display: inline-grid;
+  place-items: center;
+  font-weight: 700;
+  border: 2px solid currentColor;
+}
+
+.check__mark--ok {
+  color: var(--good);
+}
+
+.check__mark--bad {
+  color: var(--bad);
+}
+
+.check__mark--unknown {
+  color: var(--warn);
+}
+
+.check__math {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.check__math .katex-display {
+  margin: 0;
+  text-align: left;
+}
+
+.check__math .katex-display > .katex {
+  text-align: left;
+}
+
+.check__text {
+  flex: 1;
+  color: var(--ink);
+}
+
+.check__fix {
+  flex: none;
+  border: 2px solid var(--line);
+  background: #fff;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.check__fix[aria-expanded="true"] {
+  background: var(--accent);
+}
+
+.check__hint {
+  margin: 6px 0 2px calc(1.4em + 1.6em + 20px);
+  font-size: 0.88rem;
+}
+
+.check__line .segmentation {
+  margin-top: 10px;
+}
+
+.check__actions {
+  display: flex;
+  gap: 18px;
+  margin-top: 12px;
+}
+
+.check__answer {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 2px solid var(--line);
+  background: #fff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .btn,
   .examples__chip {

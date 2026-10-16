@@ -9,7 +9,7 @@ from PIL import Image
 
 import decode
 from preprocess import TARGET, to_model_input
-from segmentor import segment_characters
+from segmentor import segment_characters, segment_lines
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 # the model is served as ONNX so the runtime needs only onnxruntime, not the
@@ -92,10 +92,25 @@ def recognize(image_source, decoder=None):
     ValueError for a rejected image and OSError for data that is not a
     supported image.
     """
-    img = _flatten_transparency(open_image(image_source))
-    gray = np.array(img.convert('L'))
+    return _classify(segment_characters(_gray(image_source)), decoder)
 
-    pieces = segment_characters(gray)
+
+def recognize_lines(image_source, decoder=None):
+    """Recognize several lines of working, one equation per line.
+
+    Returns one token list (as from recognize) per written line, top line
+    first. Raises like recognize.
+    """
+    return [tokens for tokens in (_classify(pieces, decoder)
+                                  for pieces in segment_lines(_gray(image_source))) if tokens]
+
+
+def _gray(image_source):
+    img = _flatten_transparency(open_image(image_source))
+    return np.array(img.convert('L'))
+
+
+def _classify(pieces, decoder=None):
     if not pieces:
         return []
 

@@ -85,3 +85,24 @@ Limits of this benchmark: glyphs come from one dataset (the one the model
 trained on), are pasted on a clean baseline, and do not include photos of
 paper. It is a regression gate and a way to compare changes, not a promise
 of accuracy on every user's handwriting.
+
+### Several lines (check my work)
+
+`--lines K` builds pages of K equations written one under another, the ink
+of consecutive lines 0.4 to 1.2 glyph heights apart, reads them with the line
+splitter (`segmentor.split_lines`) and adds **LineRate**, the share of pages
+split into the right number of lines. ExpRate is then per line.
+
+```
+.venv\Scripts\python training/eval_equations.py --n 150 --lines 3
+```
+
+| pages | LineRate | ExpRate per line |
+|---|---|---|
+| 150 × 3 lines (seed 7) | 97.3% | 72.9% |
+| 100 × 5 lines (seed 11) | 97.0% | 71.4% |
+
+The splitter cuts on vertical gaps of at least 0.35 median glyph heights,
+and never between a thin fraction bar and the numerator or denominator
+centred on it, so loosely written fractions stay in one line. Per-line
+ExpRate stays close to the single-line figure (74.5% on seed 7).

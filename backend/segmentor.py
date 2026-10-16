@@ -250,14 +250,8 @@ def _line_letters(line_img):
 	return letters
 
 
-def segment_characters(gray_img):
-	"""Segment a grayscale equation image into per-character pieces.
-
-	Takes a 2D numpy array and returns a list of dicts, each with a 'crop'
-	(black character on white background) and its 'x','y','w','h' bounding box
-	in the resized-image coordinate space, ordered left to right, top line
-	first. Raises ValueError if no clean text lines can be detected.
-	"""
+def _binarize(gray_img):
+	"""Resize to the working width and threshold to white ink on black."""
 	orig_height, orig_width = gray_img.shape
 	width = TARGET_WIDTH
 	height = max(1, int(width * orig_height / orig_width))
@@ -265,8 +259,29 @@ def segment_characters(gray_img):
 
 	kernel_size = 21
 	normalized_mean = 20
-	bin_img = cv2.adaptiveThreshold(src_img, PIXEL_SET, cv2.ADAPTIVE_THRESH_MEAN_C,
-									cv2.THRESH_BINARY_INV, kernel_size, normalized_mean)
+	return cv2.adaptiveThreshold(src_img, PIXEL_SET, cv2.ADAPTIVE_THRESH_MEAN_C,
+								 cv2.THRESH_BINARY_INV, kernel_size, normalized_mean)
+
+
+def _band_letters(bin_img, top, bottom, margin=CROP_MARGIN):
+	"""Character pieces for the rows top..bottom, in full-image coordinates."""
+	top = max(top - margin, 0)
+	bottom = min(bottom + margin, bin_img.shape[0])
+	pieces = []
+	for piece in _line_letters(bin_img[top:bottom, :]):
+		piece['y'] += top  # band-relative y -> full-image y
+		pieces.append(piece)
+	return pieces
+
+
+def segment_characters(gray_img):
+	"""Segment a grayscale equation image into per-character pieces.
+
+	Takes a 2D numpy array and returns a list of dicts, each with a 'crop'
+	(black character on white background) and its 'x','y','w','h' bounding box
+	in the resized-image coordinate space, ordered left to right.
+	"""
+	bin_img = _binarize(gray_img)
 
 	# The app reads one equation at a time, and a single equation is 2D:
 	# exponents sit above the baseline and fractions stack three rows. The
@@ -275,11 +290,164 @@ def segment_characters(gray_img):
 	rows = np.where((bin_img == PIXEL_SET).any(axis=1))[0]
 	if len(rows) == 0:
 		return []
-	top = max(int(rows[0]) - CROP_MARGIN, 0)
-	bottom = min(int(rows[-1]) + CROP_MARGIN + 1, bin_img.shape[0])
+	return _band_letters(bin_img, int(rows[0]), int(rows[-1]) + 1)
 
-	pieces = []
-	for piece in _line_letters(bin_img[top:bottom, :]):
-		piece['y'] += top  # band-relative y -> full-image y
-		pieces.append(piece)
-	return pieces
+
+# Two lines of working are split where the gap between them is at least this
+# many median glyph heights. The gap inside a fraction (numerator, bar,
+# denominator) or under an exponent is a small fraction of a glyph height;
+# lines of working, even written large on ruled paper, are further apart
+# (the loose-fraction rules below catch a fraction written more spread out).
+LINE_GAP_FACTOR = 0.35
+# a fraction bar keeps the line below it joined across a gap up to this many
+# median glyph heights, so a loosely written fraction is not cut in two
+BAR_GAP_FACTOR = 1.2
+# a fraction bar is a pen stroke: at most this many median glyph heights thick
+FRACTION_BAR_MAX_H = 0.3
+
+
+def split_lines(bin_img):
+	"""Split a binary image of several written lines into row bands.
+
+	Returns [(top, bottom), ...] from top to bottom. Every inked component is
+	kept whole, and a band edge is never placed between a fraction bar and
+	what is directly above or below it, so fractions and exponents stay in
+	one line for the spatial parser.
+	"""
+	contours, _ = cv2.findContours(bin_img.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+	boxes = []
+	for c in contours:
+		if cv2.contourArea(c) < MIN_DOT_AREA:
+			continue
+		x, y, w, h = cv2.boundingRect(c)
+		boxes.append({'x': x, 'y': y, 'w': w, 'h': h, 'bar': _is_bar(w, h)})
+	if not boxes:
+		return []
+
+	glyph_heights = [b['h'] for b in boxes if not b['bar'] and b['h'] * b['w'] >= MIN_CONTOUR_AREA]
+	median_h = float(np.median(glyph_heights)) if glyph_heights else float(max(b['h'] for b in boxes))
+	min_gap = LINE_GAP_FACTOR * median_h
+
+	# grow bands down the page: a box joins the current band unless it starts
+	# a clear gap below everything in it
+	bands = []
+	for box in sorted(boxes, key=lambda b: b['y']):
+		if bands and box['y'] - bands[-1]['bottom'] < min_gap:
+			band = bands[-1]
+			band['bottom'] = max(band['bottom'], box['y'] + box['h'])
+			band['boxes'].append(box)
+		else:
+			bands.append({'top': box['y'], 'bottom': box['y'] + box['h'], 'boxes': [box]})
+
+	# a bar at the edge of a band with ink across the gap from it, directly
+	# above or below, is a fraction bar: its numerator or denominator belongs
+	# to the same line
+	# a fraction bar written well clear of both its numerator and its
+	# denominator is a band of its own: join it to the bands on either side
+	close = BAR_GAP_FACTOR * median_h
+	k = 1
+	while k < len(bands) - 1:
+		above, band, below = bands[k - 1], bands[k], bands[k + 1]
+		if (band['top'] - above['bottom'] < close and below['top'] - band['bottom'] < close
+				and _lone_bar_joins(above, band, below, median_h)):
+			_join(above, band)
+			_join(above, below)
+			del bands[k:k + 2]
+		else:
+			k += 1
+
+	merged = [bands[0]]
+	for band in bands[1:]:
+		prev = merged[-1]
+		if band['top'] - prev['bottom'] < close and _bar_joins(prev, band, median_h):
+			_join(prev, band)
+		else:
+			merged.append(band)
+	return [(b['top'], b['bottom']) for b in merged]
+
+
+def _join(band, other):
+	band['bottom'] = max(band['bottom'], other['bottom'])
+	band['boxes'].extend(other['boxes'])
+
+
+def _centred(box, bar):
+	return bar['x'] <= box['x'] + box['w'] / 2 <= bar['x'] + bar['w']
+
+
+def _lone_bar_joins(above, band, below, median_h):
+	"""band is nothing but a thin bar with ink centred over and under it."""
+	if not all(b['bar'] and b['h'] <= FRACTION_BAR_MAX_H * median_h for b in band['boxes']):
+		return False
+	return any(any(_centred(o, bar) for o in above['boxes']) and
+			   any(_centred(o, bar) for o in below['boxes']) for bar in band['boxes'])
+
+
+def _bar_joins(upper, lower, median_h):
+	"""A loosely written fraction cut at its bar: a fraction bar on the
+	facing edge of one band, with the other band's nearest ink centred under
+	(or over) it. To count, the bar must look like a fraction bar in its own
+	band: a thin stroke, with its numerator (or denominator) on its own side,
+	nothing on the facing side, and sitting mid-line beside the line's other
+	glyphs. That rules out a minus, a broken '÷' and the detached top stroke
+	of a '7'."""
+	centred = _centred
+
+	def above(o, b):
+		return o['y'] + o['h'] <= b['y'] + 1
+
+	def below(o, b):
+		return o['y'] >= b['y'] + b['h'] - 1
+
+	def mid_line(bar, band):
+		cy = bar['y'] + bar['h'] / 2
+		inset = 0.25 * median_h
+		beside = [o for o in band['boxes'] if o is not bar and not o['bar']
+				  and (o['x'] > bar['x'] + bar['w'] or o['x'] + o['w'] < bar['x'])]
+		return not beside or any(o['y'] + inset < cy < o['y'] + o['h'] - inset for o in beside)
+
+	def fraction_bars(band, facing_down):
+		own_side, far_side = (above, below) if facing_down else (below, above)
+		bars = []
+		for b in band['boxes']:
+			if not (b['bar'] and b['h'] <= FRACTION_BAR_MAX_H * median_h):
+				continue
+			others = [o for o in band['boxes'] if o is not b and centred(o, b)]
+			# the numerator / denominator is a glyph; a bar there is the
+			# other stroke of an '='
+			if (any(own_side(o, b) and not o['bar'] for o in others)
+					and not any(far_side(o, b) for o in others)
+					and mid_line(b, band)):
+				bars.append(b)
+		return bars
+
+	def facing(band, top_edge):
+		# the other band's ink nearest the gap
+		if top_edge:
+			return [o for o in band['boxes'] if o['y'] - band['top'] < 0.5 * median_h]
+		return [o for o in band['boxes'] if band['bottom'] - (o['y'] + o['h']) < 0.5 * median_h]
+
+	return (any(centred(o, bar) for bar in fraction_bars(upper, True) for o in facing(lower, True))
+			or any(centred(o, bar) for bar in fraction_bars(lower, False)
+				   for o in facing(upper, False)))
+
+
+def segment_lines(gray_img):
+	"""Like segment_characters, for an image of several lines of working.
+
+	Returns one list of pieces per written line, top line first; y is in the
+	full-image space, so each line can be read by the spatial parser on its
+	own.
+	"""
+	bin_img = _binarize(gray_img)
+	bands = split_lines(bin_img)
+	lines = []
+	for i, (top, bottom) in enumerate(bands):
+		# the crop margin must not reach into the neighbouring lines
+		gaps = [top - bands[i - 1][1]] if i else []
+		gaps += [bands[i + 1][0] - bottom] if i + 1 < len(bands) else []
+		margin = min([CROP_MARGIN] + [g // 2 for g in gaps])
+		pieces = _band_letters(bin_img, top, bottom, margin)
+		if pieces:
+			lines.append(pieces)
+	return lines

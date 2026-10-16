@@ -17,9 +17,15 @@ used, so most glyphs are unseen by the model. Folders smaller than the cap
 (div, times, z) were used whole in training, so those glyphs are not held
 out; the report says how many glyphs were drawn from them.
 
+With --lines K, each test image is a page of K equations written one under
+another (as in "check my work"), read with the line splitter, and it also
+reports LineRate: the share of pages split into the right number of lines.
+ExpRate is then per line.
+
 Usage (from backend/):
     python training/eval_equations.py --n 400
     python training/eval_equations.py --n 400 --decoder greedy   # compare
+    python training/eval_equations.py --n 150 --lines 3          # pages of working
 """
 import argparse
 import io
@@ -267,6 +273,8 @@ def main():
                         help='disable stroke merging in the segmenter (old behaviour)')
     parser.add_argument('--show-errors', type=int, default=0)
     parser.add_argument('--save-dir', default=None, help='write the rendered images here')
+    parser.add_argument('--lines', type=int, default=1,
+                        help='equations per page, read with the line splitter')
     args = parser.parse_args()
 
     import main as pipeline
@@ -284,6 +292,9 @@ def main():
     pools, leaked = held_out_files(args.data_dir)
     rng = random.Random(args.seed)
     renderer = Renderer(pools, rng)
+
+    if args.lines > 1:
+        return eval_pages(args, renderer, rng)
 
     totals = Counter()
     errors = []
@@ -329,6 +340,68 @@ def main():
     total = sum(renderer.drawn.values())
     print(f'glyphs drawn: {total}, of which {seen} ({seen / max(1, total):.0%}) from folders '
           f'not held out from training ({", ".join(sorted(leaked))})')
+    for truth, read in errors[:args.show_errors]:
+        print(f'  want {truth!r:22} read {read!r}')
+
+
+def stack_lines(pngs, rng):
+    """One page with each rendered equation on its own line, the ink of
+    consecutive lines 0.4 to 1.2 glyph heights apart."""
+    lines = []
+    for png in pngs:
+        ink = 255 - np.array(Image.open(io.BytesIO(png)).convert('L'))
+        rows = np.where(ink.any(axis=1))[0]
+        lines.append(ink[rows[0]:rows[-1] + 1])
+    pad = 40
+    gaps = [rng.randint(int(0.4 * GLYPH_H), int(1.2 * GLYPH_H)) for _ in lines[1:]]
+    height = sum(line.shape[0] for line in lines) + sum(gaps) + 2 * pad
+    page = np.zeros((height, max(line.shape[1] for line in lines)), np.uint8)
+    y = pad
+    for line, gap in zip(lines, gaps + [0]):
+        page[y:y + line.shape[0], :line.shape[1]] = line
+        y += line.shape[0] + gap
+    buf = io.BytesIO()
+    Image.fromarray(255 - page).save(buf, 'PNG')
+    return buf.getvalue()
+
+
+def eval_pages(args, renderer, rng):
+    import main as pipeline
+    from calculator import normalize
+    from safe_parse import ParseError, parse_tree
+    from structure import build_expression
+
+    totals = Counter()
+    errors = []
+    for i in range(args.n):
+        equations = [make_equation(rng) for _ in range(args.lines)]
+        png = stack_lines([renderer.render(items) for items, _ in equations], rng)
+        if args.save_dir:
+            os.makedirs(args.save_dir, exist_ok=True)
+            with open(os.path.join(args.save_dir, f'page{i:04d}.png'), 'wb') as f:
+                f.write(png)
+        try:
+            token_lines = pipeline.recognize_lines(io.BytesIO(png), decoder=args.decoder)
+        except ValueError:
+            token_lines = []
+        totals['pages'] += 1
+        totals['split'] += len(token_lines) == len(equations)
+        reads = [build_expression(t) for t in token_lines]
+        for k, (_, truth) in enumerate(equations):
+            read = reads[k] if k < len(reads) and len(reads) == len(equations) else ''
+            try:
+                exact = parse_tree(normalize(read)) == parse_tree(normalize(truth))
+            except ParseError:
+                exact = False
+            totals['lines'] += 1
+            totals['exact'] += exact
+            if not exact:
+                errors.append((truth, read))
+
+    print(f'pages: {totals["pages"]} of {args.lines} lines   '
+          f'decoder: {args.decoder or os.environ.get("EQSOLVER_DECODER", "default")}')
+    print(f'LineRate {totals["split"] / totals["pages"]:6.1%}   right number of lines')
+    print(f'ExpRate  {totals["exact"] / totals["lines"]:6.1%}   exact expression, per line')
     for truth, read in errors[:args.show_errors]:
         print(f'  want {truth!r:22} read {read!r}')
 

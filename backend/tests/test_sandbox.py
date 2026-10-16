@@ -37,3 +37,15 @@ def test_overrun_is_stopped_and_pool_recovers(pool):
     assert time.perf_counter() - start < 5
     # the killed helper was replaced; the next job runs normally
     assert pool.run('2+2')['solution'] == '4'
+
+
+def test_checks_in_a_helper(pool):
+    from checker import check_lines
+    lines = ['2x+3=11', '2x=14']
+    assert pool.run({'lines': lines}, kind='check') == check_lines(lines)
+
+
+def test_check_uses_the_shared_pool():
+    result = sandbox.check(['x^2=4', 'x=2'], reveal=True)
+    assert result['first_error'] == 1
+    assert result['answer_latex'] == 'x = -2, 2'
