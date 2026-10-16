@@ -29,6 +29,7 @@ Usage (from backend/):
 """
 import argparse
 import io
+import json
 import os
 import random
 import sys
@@ -298,6 +299,7 @@ def main():
 
     totals = Counter()
     errors = []
+    truths = {}
     sym_err = sym_len = 0
     for i in range(args.n):
         items, truth = make_equation(rng)
@@ -306,6 +308,7 @@ def main():
             os.makedirs(args.save_dir, exist_ok=True)
             with open(os.path.join(args.save_dir, f'{i:04d}.png'), 'wb') as f:
                 f.write(png)
+            truths[f'{i:04d}.png'] = truth
         truth_tree = parse_tree(normalize(truth))
         truth_answer = solve_job(truth)['solution']
         try:
@@ -329,6 +332,13 @@ def main():
         sym_len += len(truth_syms)
         if not exact:
             errors.append((truth, read))
+
+    if args.save_dir:
+        # what each image says, so the set can be re-scored without the dataset
+        # (tests/test_accuracy.py uses one saved this way)
+        with open(os.path.join(args.save_dir, 'truths.json'), 'w', encoding='utf-8') as f:
+            json.dump(truths, f, indent=1, ensure_ascii=False)
+            f.write('\n')
 
     n = totals['n']
     print(f'equations: {n}   decoder: {args.decoder or os.environ.get("EQSOLVER_DECODER", "default")}')

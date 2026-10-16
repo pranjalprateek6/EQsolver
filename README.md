@@ -32,6 +32,8 @@ Architecture: Conv(32), Conv(32), MaxPool, Dropout, Conv(64), MaxPool, Dropout, 
 
 The model is trained on the Kaggle "handwritten math symbols" dataset (xainano). Of its 82 symbol folders, the 21 math-relevant classes are used, each capped at 6,000 images (about 110k total) with balanced class weights and a 90/10 train and validation split. Training runs on CPU in a few minutes (Adam, 20 epochs) and reaches about 98% validation accuracy. See `backend/training/` to reproduce.
 
+Whole-equation accuracy is measured with `backend/training/eval_equations.py` (about 74% of equations read exactly right), and a committed 60-equation sample keeps it from regressing: `backend/tests/test_accuracy.py` fails CI if ExpRate on it drops below 73%.
+
 Training and inference share the same aspect-preserving preprocessing in `backend/preprocess.py`: threshold to find the ink, crop to it, scale into a 28x28 box keeping the aspect ratio, center, and normalize.
 
 ### Limitations
