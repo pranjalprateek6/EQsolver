@@ -1,0 +1,37 @@
+# Weekly dependency update PRs. Minor and patch bumps are grouped into one PR
+# per ecosystem so they don't pile up; majors come one at a time. CI (tests,
+# lint, the Docker smoke test and e2e) runs on each before it can be merged.
+version: 2
+updates:
+  - package-ecosystem: pip
+    # requirements.txt is a lockfile compiled from requirements.in; Dependabot
+    # updates the pins in place
+    directory: /backend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      python-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
