@@ -1,5 +1,6 @@
 # Weekly dependency update PRs. Minor and patch bumps are grouped into one PR
-# per ecosystem so they don't pile up; majors come one at a time. CI (tests,
+# per ecosystem so they don't pile up; majors come one at a time, except for
+# packages that only work when upgraded together, which share a PR. CI (tests,
 # lint, the Docker smoke test and e2e) runs on each before it can be merged.
 version: 2
 updates:
@@ -19,7 +20,17 @@ updates:
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
+    # a dependency goes to the first group that matches, so the lockstep
+    # groups come before the catch-all minor/patch group
     groups:
+      # react-dom must match react exactly, or npm ci fails
+      react:
+        patterns: [react, react-dom]
+      # @vitejs/plugin-react and vitest each pin a range of vite majors
+      vite:
+        patterns: [vite, "@vitejs/*", vitest]
+      eslint:
+        patterns: [eslint, "@eslint/*"]
       npm-minor:
         update-types: [minor, patch]
 
@@ -35,3 +46,13 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # odd Node majors never get long-term support; move between even (LTS)
+      # majors only, and keep CI's node-version in step
+      - dependency-name: node
+        versions: ["23.x", "25.x", "27.x", "29.x"]
+      # a new Python minor needs requirements.txt recompiled for it (see
+      # requirements.in) and CI's python-version bumped, so do those by hand;
+      # patch releases still come through
+      - dependency-name: python
+        update-types: [version-update:semver-major, version-update:semver-minor]
