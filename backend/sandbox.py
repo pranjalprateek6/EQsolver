@@ -21,6 +21,9 @@ import threading
 log = logging.getLogger(__name__)
 
 SOLVE_TIMEOUT = float(os.environ.get('SOLVE_TIMEOUT', '3'))
+# checking a student's working compares up to checker.MAX_LINES equations in
+# one job, so it gets a longer (but still hard) limit than a single solve
+CHECK_TIMEOUT = float(os.environ.get('CHECK_TIMEOUT', '8'))
 POOL_SIZE = int(os.environ.get('SOLVER_PROCESSES', '2'))
 # extra address space a helper may use beyond what it needs at startup
 MEMORY_HEADROOM_MB = int(os.environ.get('SOLVER_MEMORY_MB', '256'))
@@ -55,16 +58,19 @@ def _cap_memory(headroom_mb):
 
 
 def _helper_main(conn, headroom_mb):
-    import calculator  # imported before the cap so startup never hits it
+    # imported before the cap so startup never hits it
+    import calculator
+    import checker
+    jobs = {'solve': calculator.solve_job, 'check': checker.check_job}
     _cap_memory(headroom_mb)
     conn.send('ready')
     while True:
         try:
-            expression = conn.recv()
+            kind, payload = conn.recv()
         except (EOFError, OSError):
             return
         try:
-            result = calculator.solve_job(expression)
+            result = jobs[kind](payload)
         except MemoryError:
             result = {'error': 'memory'}
         except Exception as exc:  # report, never let one input kill the helper
@@ -75,7 +81,7 @@ def _helper_main(conn, headroom_mb):
 def _context():
     if sys.platform.startswith('linux'):
         ctx = multiprocessing.get_context('forkserver')
-        ctx.set_forkserver_preload(['calculator'])
+        ctx.set_forkserver_preload(['calculator', 'checker'])
         return ctx
     return multiprocessing.get_context('spawn')
 
@@ -116,8 +122,9 @@ class SolverPool:
         for _ in range(max(1, size)):
             self._idle.put(_Helper(self._ctx))
 
-    def run(self, expression, timeout=None):
-        """Return calculator.solve_job(expression) computed in a helper."""
+    def run(self, expression, timeout=None, kind='solve'):
+        """Return calculator.solve_job(expression) computed in a helper, or
+        with kind='check', checker.check_job(expression)."""
         timeout = self.timeout if timeout is None else timeout
         try:
             helper = self._idle.get(timeout=QUEUE_TIMEOUT)
@@ -128,7 +135,7 @@ class SolverPool:
         try:
             if not helper.wait_ready():
                 raise SolverError('solver process failed to start')
-            helper.conn.send(expression)
+            helper.conn.send((kind, expression))
             if not helper.conn.poll(timeout):
                 raise SolveTimeout()
             result = helper.conn.recv()
@@ -146,6 +153,8 @@ class SolverPool:
 
         if 'error' in result:
             log.warning('solver failed on %r: %s', expression, result['error'])
+            if kind == 'check':
+                raise SolverError(result['error'])
             return {'expression': expression, 'solution': None,
                     'solution_latex': '', 'latex': '', 'steps': []}
         return result
@@ -170,3 +179,10 @@ def get_pool():
 def solve(expression):
     """Solve in the sandbox. Raises SolveTimeout, SolverBusy or SolverError."""
     return get_pool().run(expression)
+
+
+def check(lines, reveal=False):
+    """Check lines of working in the sandbox (see checker.check_lines).
+    Raises SolveTimeout, SolverBusy or SolverError."""
+    return get_pool().run({'lines': list(lines), 'reveal': bool(reveal)},
+                          timeout=CHECK_TIMEOUT, kind='check')

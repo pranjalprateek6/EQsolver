@@ -10,8 +10,8 @@ const BASELINE_Y = 0.72;
 
 // keyed to the screen, not the canvas: on desktop the two-column layout
 // makes the canvas narrow too, but there is no finger to make room for
-const heightFor = (width) =>
-  Math.round(width * (window.innerWidth < NARROW_WIDTH ? NARROW_ASPECT : ASPECT));
+const heightFor = (width, aspect = ASPECT, narrowAspect = NARROW_ASPECT) =>
+  Math.round(width * (window.innerWidth < NARROW_WIDTH ? narrowAspect : aspect));
 
 // A pen's pressure scales the line between these multiples of the brush
 // size; mice and fingers report no real pressure and draw at 1x.
@@ -61,8 +61,17 @@ function drawStroke(ctx, stroke, from = 0) {
 //
 // The parent drives it through a ref: undo, redo, clearCanvas, isEmpty,
 // setStrokeWeight, exportImage and getStrokes.
-const DrawingCanvas = forwardRef(function DrawingCanvas({ onStrokeEnd }, ref) {
+//
+// `aspect` / `narrowAspect` override the height-to-width ratio, and `rules`
+// draws that many ruled lines (one per line of working) in place of the
+// single baseline guide. Neither guide is part of the exported image.
+const DrawingCanvas = forwardRef(function DrawingCanvas(
+  { onStrokeEnd, aspect = ASPECT, narrowAspect = NARROW_ASPECT, rules = 0, label },
+  ref
+) {
   const containerRef = useRef(null);
+  const shape = useRef({ aspect, narrowAspect });
+  shape.current = { aspect, narrowAspect };
   const canvasRef = useRef(null);
   const state = useRef({
     strokes: [],
@@ -93,9 +102,9 @@ const DrawingCanvas = forwardRef(function DrawingCanvas({ onStrokeEnd }, ref) {
     const canvas = canvasRef.current;
     if (!container || !canvas) return;
     const width = container.clientWidth || 550;
-    const height = heightFor(width);
+    const height = heightFor(width, shape.current.aspect, shape.current.narrowAspect);
     const s = state.current;
-    if (Math.abs(width - s.width) <= 1 && s.height) return;
+    if (Math.abs(width - s.width) <= 1 && Math.abs(height - s.height) <= 1 && s.height) return;
     if (s.width) {
       const sx = width / s.width;
       const sy = height / s.height;
@@ -229,12 +238,16 @@ const DrawingCanvas = forwardRef(function DrawingCanvas({ onStrokeEnd }, ref) {
   }), [repaint]);
 
   return (
-    <div ref={containerRef} className="drawing" style={{ "--baseline": `${BASELINE_Y * 100}%` }}>
+    <div
+      ref={containerRef}
+      className={rules ? "drawing drawing--ruled" : "drawing"}
+      style={rules ? { "--rules": rules } : { "--baseline": `${BASELINE_Y * 100}%` }}
+    >
       <canvas
         ref={canvasRef}
         className="drawing__canvas"
         role="img"
-        aria-label="Drawing area. Write an equation here with a mouse, finger or pen."
+        aria-label={label || "Drawing area. Write an equation here with a mouse, finger or pen."}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endStroke}

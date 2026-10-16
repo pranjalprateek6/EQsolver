@@ -64,6 +64,10 @@ jobs:
           curl -sf -X POST http://localhost:5000/solve \
             -H 'Content-Type: application/json' \
             -d '{"expression":"x**2-5*x+6=0"}' | grep -q '\[2, 3\]'
+          # checking work runs in the sandbox too and flags the wrong step
+          curl -sf -X POST http://localhost:5000/check \
+            -H 'Content-Type: application/json' \
+            -d '{"lines":["2x+3=11","2x=11+3"]}' | grep -q '"first_error": *1'
           # hostile input is refused, not executed
           code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:5000/solve \
             -H 'Content-Type: application/json' \

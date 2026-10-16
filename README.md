@@ -104,6 +104,15 @@ input, and a runaway solve that must be cut off).
 
 Draw an equation and click Evaluate, or pick one of the example chips. The segmentation preview, the editable recognized equation, and the solution appear in the results panel beside the canvas. If a symbol is misread, fix it in the recognized field and press Solve.
 
+**Check my work** (the switch under the title) checks a student's working
+instead of solving it. Write the problem on the first ruled line and each step
+on the next, one equation per line (or type them). Every line is checked
+against the line above it: a correct step keeps the same solutions. The first
+line that changes them is highlighted with a short hint (a sign error when
+moving a term, multiplying or dividing only one side, a lost or extra
+solution), and the answer stays hidden until you press "Show the answer". Tap
+"Fix reading" on a handwritten line to correct a misread symbol.
+
 ## API
 
 `POST /predict` with `{"image": "<url-safe base64>"}` returns the recognized characters (each with its confidence and a preview image), the recognized expression, its LaTeX, and the solution:
@@ -132,6 +141,29 @@ re-reads characters after the user corrects some of them (tapping a tile in
 the UI). Positions are kept, so powers, fractions and roots are still read
 from the layout. It returns the same fields as `/predict` minus `characters`.
 
+`POST /check` with `{"lines": ["2x+3=11", "2x=11+3", "x=7"]}` (or a
+handwritten page as `{"image": "<url-safe base64>"}`, one equation per line)
+checks a student's working, at most 12 lines:
+
+```json
+{
+  "lines": [
+    {"text": "2x+3=11", "latex": "2 x + 3 = 11", "ok": true, "reason": ""},
+    {"text": "2x=11+3", "latex": "2 x = 11 + 3", "ok": false,
+     "reason": "check the sign when you moved 3 across the =: it should become -3 on the other side"},
+    {"text": "x=7", "latex": "x = 7", "ok": true, "reason": ""}
+  ],
+  "first_error": 1,
+  "finished": false
+}
+```
+
+`ok` is `null` for a step that could not be checked. Each line is compared
+with the one before (over the real numbers), so `x=7` above is a correct step
+from its own previous line. Handwritten lines also carry `characters`, for
+`/rebuild`. The answer is only included, as `answer_latex`, when the request
+sets `"reveal": true`.
+
 Expressions use `+ - * / ** ^ =`, parentheses, `sqrt(...)`, `pi`, decimals and
 single-letter variables; juxtaposition multiplies (`2x`, `3(x+1)`). Anything
 else is refused.
@@ -152,7 +184,7 @@ too large), 422 (unreadable or unsolvable) or 429 (rate limited) status.
   one hard equation cannot stall the server.
 - Uploads are limited by request size, pixel count, shape and format (PNG,
   JPEG, WebP), checked from the image header before decoding.
-- Requests to `/predict` and `/solve` are rate limited per client.
+- Requests to `/predict`, `/solve`, `/rebuild` and `/check` are rate limited per client.
 
 ## Configuration
 
@@ -164,11 +196,12 @@ All settings are environment variables with production-safe defaults.
 | `WEB_CONCURRENCY` | `1` | gunicorn worker processes |
 | `GUNICORN_THREADS` | `4` | Threads per worker |
 | `SOLVE_TIMEOUT` | `3` | Seconds a solve may run before it is killed |
+| `CHECK_TIMEOUT` | `8` | Seconds a whole `/check` (all its lines) may run |
 | `SOLVER_PROCESSES` | `2` | Solver processes per worker |
 | `SOLVER_MEMORY_MB` | `256` | Extra memory a solver process may use (Linux) |
 | `MAX_REQUEST_BYTES` | `10485760` | Largest request body |
 | `MAX_IMAGE_PIXELS` | `25000000` | Largest image, in pixels |
-| `RATE_LIMIT` | `30 per minute` | Per-client limit on `/predict` and `/solve` |
+| `RATE_LIMIT` | `30 per minute` | Per-client limit on each API endpoint |
 | `RATELIMIT_STORAGE_URI` | `memory://` | Shared limiter storage, for example `redis://...` |
 | `PROXY_COUNT` | `0` | Reverse proxies in front of the app (Render: `1`) |
 | `CORS_ORIGINS` | `http://localhost:3000,http://127.0.0.1:3000` | Allowed cross-origin callers |

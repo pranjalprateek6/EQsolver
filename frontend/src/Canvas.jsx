@@ -4,6 +4,7 @@ import DrawingCanvas from "./DrawingCanvas";
 import UploadButton, { readImageFile } from "./UploadButton";
 import SegmentationStrip from "./SegmentationStrip";
 import ResultPanel from "./ResultPanel";
+import CheckWork from "./CheckWork";
 import { postJson } from "./api";
 import { clearHistory, expressionFromLink, loadHistory, remember, shareLink } from "./history";
 import "./App.css";
@@ -40,6 +41,11 @@ function Canvas() {
   const [recognized, setRecognized] = useState("");
   const [history, setHistory] = useState(loadHistory);
   const [copied, setCopied] = useState(false);
+  // "solve" reads and solves one equation; "check" checks lines of working
+  const [mode, setMode] = useState("solve");
+  const [checkOpened, setCheckOpened] = useState(false);
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const drawingRef = useRef(null);
   const requestRef = useRef(null);
 
@@ -197,7 +203,10 @@ function Canvas() {
   useEffect(() => {
     const openShared = () => {
       const shared = expressionFromLink();
-      if (shared) onExampleRef.current(shared);
+      if (shared) {
+        setMode("solve");
+        onExampleRef.current(shared);
+      }
     };
     openShared();
     window.addEventListener("hashchange", openShared);
@@ -243,7 +252,7 @@ function Canvas() {
   // paste an image from the clipboard anywhere on the page
   useEffect(() => {
     const onPaste = (event) => {
-      if (isTyping(event.target)) return;
+      if (isTyping(event.target) || modeRef.current !== "solve") return;
       const file = [...(event.clipboardData?.files || [])].find((f) =>
         f.type.startsWith("image/")
       );
@@ -260,6 +269,7 @@ function Canvas() {
   useEffect(() => {
     const onKey = (event) => {
       if (isTyping(event.target) || !(event.ctrlKey || event.metaKey)) return;
+      if (modeRef.current !== "solve") return;
       const key = event.key.toLowerCase();
       if (key === "z" && !event.shiftKey) {
         event.preventDefault();
@@ -296,10 +306,41 @@ function Canvas() {
       <header className="app-header">
         <h1 className="app-title">EQsolver</h1>
         <p className="app-subtitle">
-          Draw an equation and let the model read and solve it.
+          {mode === "solve"
+            ? "Draw an equation and let the model read and solve it."
+            : "Write your working line by line and find the first step that goes wrong."}
         </p>
+        <div className="mode-switch" role="group" aria-label="Mode">
+          <button
+            type="button"
+            className={`mode-switch__option ${mode === "solve" ? "is-active" : ""}`}
+            aria-pressed={mode === "solve"}
+            onClick={() => setMode("solve")}
+          >
+            Solve
+          </button>
+          <button
+            type="button"
+            className={`mode-switch__option ${mode === "check" ? "is-active" : ""}`}
+            aria-pressed={mode === "check"}
+            onClick={() => {
+              setMode("check");
+              setCheckOpened(true);
+            }}
+          >
+            Check my work
+          </button>
+        </div>
       </header>
 
+      {/* both modes stay mounted once opened, so switching keeps each drawing */}
+      {checkOpened && (
+        <div hidden={mode !== "check"}>
+          <CheckWork />
+        </div>
+      )}
+
+      <div hidden={mode !== "solve"}>
       <div className="workspace">
       <section className="panel board" aria-label="Drawing board">
         <div
@@ -450,6 +491,7 @@ function Canvas() {
           )
         )}
       </section>
+      </div>
       </div>
     </div>
   );

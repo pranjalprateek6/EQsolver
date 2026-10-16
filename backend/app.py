@@ -13,7 +13,8 @@ from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 import sandbox
-from main import CODE2CHAR, ImageTooLarge, healthcheck, recognize
+from checker import MAX_LINES
+from main import CODE2CHAR, ImageTooLarge, healthcheck, recognize, recognize_lines
 from safe_parse import MAX_LENGTH
 from structure import build_expression
 
@@ -128,39 +129,57 @@ def healthz():
     return jsonify(status='ok')
 
 
-@app.route('/predict', methods=['POST'])
-@limiter.limit(_rate_limit)
-def predict():
+class _BadRequest(Exception):
+    def __init__(self, message, status):
+        super().__init__(message)
+        self.status = status
+
+
+def _read_image(read):
+    """Decode the request's base64 'image' and run read() on it. Raises
+    _BadRequest with the status to answer."""
     image_b64 = _json_body().get('image')
     if not image_b64:
-        return _error("missing 'image' field", 400)
+        raise _BadRequest("missing 'image' field", 400)
     if not isinstance(image_b64, str):
-        return _error("'image' must be a base64 string", 400)
+        raise _BadRequest("'image' must be a base64 string", 400)
 
     try:
         image = BytesIO(base64.urlsafe_b64decode(image_b64))
     except (binascii.Error, ValueError):
-        return _error("'image' is not valid base64", 400)
+        raise _BadRequest("'image' is not valid base64", 400) from None
 
     try:
-        tokens = recognize(image)
+        return read(image)
     except ImageTooLarge as exc:
-        return _error(str(exc), 413)
+        raise _BadRequest(str(exc), 413) from None
     except ValueError as exc:
-        return _error(str(exc), 422)
+        raise _BadRequest(str(exc), 422) from None
     except OSError:
-        return _error("could not decode the image (use PNG, JPEG or WebP)", 400)
+        raise _BadRequest("could not decode the image (use PNG, JPEG or WebP)", 400) from None
 
-    if not tokens:
-        return _error("no characters detected in the image", 422)
 
-    characters = [
+def _characters(tokens):
+    return [
         {'char': t['char'], 'confidence': t['confidence'], 'image': t['image'],
          'alternatives': [{'char': c, 'confidence': p} for c, p in t.get('alternatives', [])],
          'x': t['x'], 'y': t['y'], 'w': t['w'], 'h': t['h']}
         for t in tokens
     ]
-    return jsonify(characters=characters, **_read_and_solve(tokens))
+
+
+@app.route('/predict', methods=['POST'])
+@limiter.limit(_rate_limit)
+def predict():
+    try:
+        tokens = _read_image(recognize)
+    except _BadRequest as exc:
+        return _error(str(exc), exc.status)
+
+    if not tokens:
+        return _error("no characters detected in the image", 422)
+
+    return jsonify(characters=_characters(tokens), **_read_and_solve(tokens))
 
 
 def _read_and_solve(tokens):
@@ -240,6 +259,54 @@ def solve():
         steps=result.get('steps', []),
         solved=True,
     )
+
+
+@app.route('/check', methods=['POST'])
+@limiter.limit(_rate_limit)
+def check():
+    """Check a student's working, one equation per line: each line must keep
+    the solutions of the line before. Takes typed 'lines' or a handwritten
+    'image' of several lines. The answer is only included with 'reveal'."""
+    body = _json_body()
+    reveal = body.get('reveal') is True
+    characters = None
+    if 'image' in body:
+        try:
+            token_lines = _read_image(recognize_lines)
+        except _BadRequest as exc:
+            return _error(str(exc), exc.status)
+        if not token_lines:
+            return _error("no writing detected in the image", 422)
+        if len(token_lines) > MAX_LINES:
+            return _error(f"too many lines (max {MAX_LINES}); write one equation per line", 422)
+        lines = [build_expression(tokens) for tokens in token_lines]
+        characters = [_characters(tokens) for tokens in token_lines]
+    else:
+        lines = body.get('lines')
+        if not isinstance(lines, list) or not lines:
+            return _error("missing 'lines' list", 400)
+        if len(lines) > MAX_LINES:
+            return _error(f"too many lines (max {MAX_LINES})", 400)
+        if not all(isinstance(line, str) and line.strip() for line in lines):
+            return _error("each line must be a non-empty string", 400)
+        if any(len(line) > MAX_LENGTH for line in lines):
+            return _error(f"a line is too long (max {MAX_LENGTH} characters)", 400)
+
+    try:
+        result = sandbox.check(lines, reveal=reveal)
+    except sandbox.SolveTimeout:
+        log.info('check timed out: %r', lines)
+        return _error('that took too long to check', 422)
+    except sandbox.SolverBusy:
+        return _error('the server is busy, try again in a moment', 503)
+    except sandbox.SolverError:
+        log.exception('check failed: %r', lines)
+        return _error('could not check that working', 422)
+
+    if characters is not None:
+        for row, chars in zip(result['lines'], characters):
+            row['characters'] = chars
+    return jsonify(result)
 
 
 if __name__ == "__main__":
