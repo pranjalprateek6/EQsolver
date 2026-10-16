@@ -119,7 +119,7 @@ def _classify(pieces, decoder=None):
     ranked = np.argsort(-probs, axis=1)[:, :TOP_K]
 
     tokens = []
-    for piece, row, order in zip(pieces, probs, ranked):
+    for piece, row, order in zip(pieces, probs, ranked, strict=True):
         alternatives = [(CODE2CHAR[int(c)], round(float(row[c]), 4)) for c in order]
         tokens.append({
             'char': alternatives[0][0],

@@ -357,7 +357,7 @@ def stack_lines(pngs, rng):
     height = sum(line.shape[0] for line in lines) + sum(gaps) + 2 * pad
     page = np.zeros((height, max(line.shape[1] for line in lines)), np.uint8)
     y = pad
-    for line, gap in zip(lines, gaps + [0]):
+    for line, gap in zip(lines, gaps + [0], strict=True):
         page[y:y + line.shape[0], :line.shape[1]] = line
         y += line.shape[0] + gap
     buf = io.BytesIO()

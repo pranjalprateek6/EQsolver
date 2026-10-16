@@ -3,7 +3,7 @@ synthetic binary line images (foreground = 255) to avoid the line detector."""
 import cv2
 import numpy as np
 
-from segmentor import _line_letters, _is_bar
+from segmentor import _is_bar, _line_letters
 
 
 def _blank(h, w):

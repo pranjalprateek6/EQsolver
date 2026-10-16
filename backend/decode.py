@@ -18,6 +18,7 @@ bar can only be a minus (or fraction bar), and two merged bars only an '='.
 import heapq
 import math
 import re
+from itertools import pairwise
 
 from safe_parse import ParseError, parse_tree
 from structure import build_expression
@@ -60,7 +61,7 @@ def _readings(options):
     """Yield (log_prob, choice_indices) best-first over independent choices."""
     logs = [[math.log(max(p, MIN_PROB)) for _, p in opts] for opts in options]
     start = tuple(0 for _ in options)
-    heap = [(-sum(l[0] for l in logs), start)]
+    heap = [(-sum(lp[0] for lp in logs), start)]
     seen = {start}
     while heap:
         neg, picks = heapq.heappop(heap)
@@ -89,7 +90,7 @@ def _penalty(tokens, expression):
     if re.search(r'\*\*\([^)]*[xyz]', expression):
         penalty += VARIABLE_IN_EXPONENT
     ordered = sorted(tokens, key=lambda t: t['x'])
-    for a, b in zip(ordered, ordered[1:]):
+    for a, b in pairwise(ordered):
         same_line = abs(_centre_y(a) - _centre_y(b)) < 0.25 * max(a['h'], b['h'])
         if a['char'] in VARIABLES and b['char'] in DIGITS and same_line:
             penalty += VARIABLE_THEN_DIGIT
@@ -111,7 +112,7 @@ def choose(tokens):
             # penalty-free one cannot beat the best score, stop
             break
         reading = [{**t, 'char': options[i][k][0], 'confidence': round(options[i][k][1], 4)}
-                   for i, (t, k) in enumerate(zip(tokens, picks))]
+                   for i, (t, k) in enumerate(zip(tokens, picks, strict=True))]
         score = log_prob - _penalty(reading, build_expression(reading))
         if best is None or score > best[0]:
             best = (score, reading)

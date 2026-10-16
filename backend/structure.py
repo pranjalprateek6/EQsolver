@@ -57,7 +57,6 @@ def _bbox(tokens):
 
 
 def _median_height(tokens):
-    heights = [t['h'] for t in tokens if t['char'] not in ('-',) or t['h'] > 0]
     plain = [t['h'] for t in tokens]
     return median(plain) if plain else 1
 

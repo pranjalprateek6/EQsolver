@@ -139,7 +139,7 @@ def _bar_between(a, b, bars):
 def _merge_division_signs(rects):
 	"""A short bar with a small dot directly above and below it is a '÷'."""
 	for bar in [r for r in rects if r['shape'] == 'bar']:
-		def dot(r, above):
+		def dot(r, above, bar=bar):
 			if r is bar or r['shape'] is not None or max(r['w'], r['h']) > 0.4 * bar['w']:
 				return False
 			cx = r['x'] + r['w'] / 2

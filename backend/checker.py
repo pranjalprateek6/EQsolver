@@ -24,8 +24,22 @@ runs inside the sandbox (see sandbox.py), which enforces the time limit.
 """
 import re
 
-from sympy import (Add, Complement, Dummy, EmptySet, FiniteSet, Interval, S, Union, cancel,
-                   expand, latex, simplify, solveset, together)
+from sympy import (
+    Add,
+    Complement,
+    Dummy,
+    EmptySet,
+    FiniteSet,
+    Interval,
+    S,
+    Union,
+    cancel,
+    expand,
+    latex,
+    simplify,
+    solveset,
+    together,
+)
 
 import calculator
 from safe_parse import ParseError, parse, to_latex

@@ -307,7 +307,7 @@ def check():
         return _error('could not check that working', 422)
 
     if characters is not None:
-        for row, chars in zip(result['lines'], characters):
+        for row, chars in zip(result['lines'], characters, strict=True):
             row['characters'] = chars
     return jsonify(result)
 
