@@ -153,6 +153,11 @@ cd frontend && npm run lint
 `ruff format .` and `ruff check --fix .` fix most findings. Dependabot
 (`.github/dependabot.yml`) opens weekly grouped update PRs for pip, npm,
 GitHub Actions and the Docker base images; merge them once CI is green.
+Packages that must move together share a PR (`react` + `react-dom`; `vite`,
+`@vitejs/plugin-react` + `vitest`; `eslint` + `@eslint/js`). It skips odd,
+non-LTS Node majors and new Python minors: a Python upgrade means recompiling
+`requirements.txt` for that version (see `requirements.in`) and bumping CI's
+`python-version`, so it is done by hand.
 
 ## Usage
 
