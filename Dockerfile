@@ -7,7 +7,11 @@ WORKDIR /fe
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+# optional frontend error tracking, baked into the bundle at build time
+# (Render passes service environment variables as build args)
+ARG VITE_SENTRY_DSN=""
+ARG VITE_SENTRY_ENVIRONMENT=production
+RUN VITE_SENTRY_DSN="$VITE_SENTRY_DSN" VITE_SENTRY_ENVIRONMENT="$VITE_SENTRY_ENVIRONMENT" npm run build
 
 FROM python:3.12-slim
 WORKDIR /app
@@ -37,4 +41,4 @@ EXPOSE 5000
 CMD gunicorn --bind "0.0.0.0:${PORT:-5000}" \
     --workers "${WEB_CONCURRENCY:-1}" --threads "${GUNICORN_THREADS:-4}" \
     --worker-class gthread --timeout 30 --graceful-timeout 10 \
-    --access-logfile - app:app
+    app:app

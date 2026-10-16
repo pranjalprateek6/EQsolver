@@ -10,4 +10,5 @@ numpy
 onnxruntime
 opencv-python-headless
 pillow
+sentry-sdk[flask]
 sympy

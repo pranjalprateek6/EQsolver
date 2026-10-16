@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { reportError } from "./monitoring";
 
 // Catches render-time errors so a bug shows a friendly message and a reload
 // option instead of a blank screen.
@@ -14,6 +15,7 @@ class ErrorBoundary extends Component {
 
   componentDidCatch(error, info) {
     console.error("Unexpected error:", error, info);
+    reportError(error, { componentStack: info?.componentStack });
   }
 
   render() {
