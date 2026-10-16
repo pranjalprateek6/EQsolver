@@ -2,7 +2,7 @@
 # API together from Flask/gunicorn on one port. Build from the repo root:
 #   docker build -t eqsolver .
 #   docker run -p 5000:5000 eqsolver   # open http://localhost:5000
-FROM node:22-alpine AS frontend
+FROM node:25-alpine AS frontend
 WORKDIR /fe
 COPY frontend/package*.json ./
 RUN npm ci
