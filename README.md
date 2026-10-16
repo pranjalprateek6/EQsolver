@@ -14,7 +14,7 @@ The recognized equation is editable, so a misread is a quick fix rather than a w
 
 ## Project structure
 
-- `frontend/` React 18 + Vite app (drawing canvas, upload, results)
+- `frontend/` React 19 + Vite app (drawing canvas, upload, results)
 - `backend/` Flask API, image segmentation, trained model (`model.h5`)
 
 ## The model
