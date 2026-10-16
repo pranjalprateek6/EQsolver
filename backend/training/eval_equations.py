@@ -273,7 +273,7 @@ def main():
     parser.add_argument('--no-merge', action='store_true',
                         help='disable stroke merging in the segmenter (old behaviour)')
     parser.add_argument('--show-errors', type=int, default=0)
-    parser.add_argument('--save-dir', default=None, help='write the rendered images and truths.json here')
+    parser.add_argument('--save-dir', default=None, help='write the rendered images here')
     parser.add_argument('--lines', type=int, default=1,
                         help='equations per page, read with the line splitter')
     args = parser.parse_args()
