@@ -9,6 +9,15 @@ services:
     # runs one model inference and one sandboxed solve
     healthCheckPath: /healthz
     autoDeploy: true
+    # Staging: a pull request preview is a throwaway copy of this service
+    # built from the PR's branch, with its own onrender.com URL shown on the
+    # PR as a deployment. "manual" builds one only for PRs labelled
+    # render-preview (or with "[render preview]" in the title), so previews
+    # don't eat into the free tier's shared monthly instance hours. Use
+    # "automatic" to build one for every PR.
+    previews:
+      generation: manual
+      plan: free
     envVars:
       # Render's proxy adds one X-Forwarded-For hop; trust exactly that one so
       # rate limits apply per client rather than to the proxy

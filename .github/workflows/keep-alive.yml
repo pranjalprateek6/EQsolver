@@ -4,20 +4,74 @@ name: Keep alive
 # healthy. It wakes the instance (~50s cold start) and it sleeps again ~15 min
 # later, so this is a daily health touch, not a stay-awake-all-day pinger, and
 # it uses only a few instance-hours a month.
+#
+# When /healthz is down the run fails (GitHub emails whoever last edited the
+# schedule) and an issue labelled "outage" is opened, so everyone watching
+# the repo is notified; the next healthy run comments and closes it.
 on:
   schedule:
     # GitHub cron is UTC. 02:30 UTC = 08:00 IST. Change this to your time zone.
     - cron: '30 2 * * *'
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+  issues: write
+
+env:
+  APP_URL: https://eqsolver-btzj.onrender.com
+
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping the app (retry through the cold start)
+      - name: Check /healthz (retry through the cold start)
+        id: health
         run: |
-          code=$(curl -sS -o /dev/null -w "%{http_code}" \
+          set +e
+          body=$(curl -sS -w '\n%{http_code}' \
             --max-time 150 --retry 5 --retry-delay 20 --retry-all-errors \
-            https://eqsolver-btzj.onrender.com/healthz)
-          echo "final status: $code"
-          test "$code" = "200"
+            "$APP_URL/healthz")
+          curl_exit=$?
+          set -e
+          code=$(printf '%s' "$body" | tail -n1)
+          # one line, short: it goes into an annotation and a step output
+          body=$(printf '%s' "$body" | sed '$d' | tr -d '\r\n' | cut -c1-300)
+          echo "curl exit: $curl_exit  status: $code  body: $body"
+          if [ "$curl_exit" -ne 0 ] || [ "$code" != "200" ] || ! printf '%s' "$body" | grep -q '"ok"'; then
+            echo "::error title=EQsolver is down::$APP_URL/healthz answered status ${code:-none} (curl exit $curl_exit): ${body:-no body}"
+            {
+              echo "detail=status ${code:-none}, curl exit $curl_exit, body: ${body:-no body}"
+            } >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+      - name: Open or update the outage issue
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DETAIL: ${{ steps.health.outputs.detail }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create outage --color B60205 --description "Production health check failing" 2>/dev/null || true
+          msg="The daily health check of $APP_URL/healthz failed at $(date -u '+%Y-%m-%d %H:%M UTC'): $DETAIL. Run: $RUN_URL"
+          open=$(gh issue list --label outage --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "Still failing. $msg"
+          else
+            gh issue create --title "Production is down: /healthz failing" --label outage \
+              --body "$msg
+
+          Check the Render dashboard (events and logs) for the eqsolver service. This issue closes itself on the next healthy check."
+          fi
+
+      - name: Close the outage issue on recovery
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for n in $(gh issue list --label outage --state open --json number --jq '.[].number'); do
+            gh issue close "$n" --comment "Healthy again at $(date -u '+%Y-%m-%d %H:%M UTC')."
+          done
