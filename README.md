@@ -69,6 +69,27 @@ New + Blueprint, connect this repo, and Render builds the root Dockerfile and
 serves the app on its free tier. The image ships an ONNX model and no
 TensorFlow, so it stays within the free tier's memory.
 
+Every merge to `main` deploys to production.
+
+**Staging (pull request previews).** `render.yaml` turns on Render's pull
+request previews in manual mode: add the `render-preview` label to a PR (or put
+`[render preview]` in its title) and Render builds that branch as a separate
+free service with its own `onrender.com` URL, linked from the PR as a
+deployment, and deletes it when the PR closes. Previews copy the production
+service's environment variables when they are created. Switch
+`previews.generation` to `automatic` to preview every PR; each preview uses
+free-tier instance hours from the same monthly allowance. Blueprint changes
+apply once the blueprint is synced in the dashboard; if the service was created
+by hand rather than from the blueprint, turn previews on in its **Previews**
+tab instead.
+
+**Uptime.** `.github/workflows/keep-alive.yml` checks `/healthz` once a day.
+If it is down the run fails (GitHub emails whoever last edited that workflow's
+schedule) and it opens an issue labelled `outage`, which notifies everyone
+watching the repo; the next healthy run closes it. Run it by hand from the
+Actions tab after a deploy. Change `APP_URL` in the workflow if the service
+URL changes.
+
 ### Manual
 
 Backend (the app runtime needs only onnxruntime, so any recent Python 3 works;
